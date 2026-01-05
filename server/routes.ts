@@ -1,7 +1,25 @@
-import type { Express } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage, generateTrackingCode, generateAuditHash } from "./storage";
 import { insertCitizenSchema, insertServiceSchema, insertPaymentSchema } from "@shared/schema";
+import bcrypt from "bcrypt";
+
+declare module "express-session" {
+  interface SessionData {
+    userId?: string;
+    role?: string;
+  }
+}
+
+function requireAdmin(req: Request, res: Response, next: NextFunction) {
+  if (!req.session.userId) {
+    return res.status(401).json({ error: "Non autorisé" });
+  }
+  if (req.session.role !== "admin" && req.session.role !== "staff") {
+    return res.status(403).json({ error: "Accès refusé" });
+  }
+  next();
+}
 
 export async function registerRoutes(
   httpServer: Server,
@@ -450,6 +468,226 @@ Veuillez vous rendre au bureau le plus proche.`;
     } catch (error) {
       console.error("Error seeding data:", error);
       res.status(500).json({ error: "Failed to seed data" });
+    }
+  });
+
+  // ============ AUTHENTICATION API ============
+
+  // Login
+  app.post("/api/auth/login", async (req, res) => {
+    try {
+      const { username, password } = req.body;
+
+      if (!username || !password) {
+        return res.status(400).json({ error: "Nom d'utilisateur et mot de passe requis" });
+      }
+
+      const user = await storage.getUserByUsername(username);
+      if (!user) {
+        return res.status(401).json({ error: "Identifiants invalides" });
+      }
+
+      const validPassword = await bcrypt.compare(password, user.password);
+      if (!validPassword) {
+        return res.status(401).json({ error: "Identifiants invalides" });
+      }
+
+      req.session.userId = user.id;
+      req.session.role = user.role;
+
+      await storage.createAuditLog({
+        actorId: user.id,
+        action: "LOGIN",
+        resource: "user",
+        resourceId: user.id,
+        details: `User ${user.username} logged in`,
+        hash: generateAuditHash({ userId: user.id, action: "login" }),
+      });
+
+      res.json({
+        id: user.id,
+        username: user.username,
+        role: user.role,
+        fullName: user.fullName,
+      });
+    } catch (error) {
+      console.error("Error during login:", error);
+      res.status(500).json({ error: "Erreur de connexion" });
+    }
+  });
+
+  // Logout
+  app.post("/api/auth/logout", (req, res) => {
+    req.session.destroy((err) => {
+      if (err) {
+        return res.status(500).json({ error: "Erreur de déconnexion" });
+      }
+      res.json({ message: "Déconnecté avec succès" });
+    });
+  });
+
+  // Get current user
+  app.get("/api/auth/me", async (req, res) => {
+    if (!req.session.userId) {
+      return res.status(401).json({ error: "Non connecté" });
+    }
+
+    try {
+      const user = await storage.getUser(req.session.userId);
+      if (!user) {
+        req.session.destroy(() => {});
+        return res.status(401).json({ error: "Utilisateur non trouvé" });
+      }
+
+      res.json({
+        id: user.id,
+        username: user.username,
+        role: user.role,
+        fullName: user.fullName,
+      });
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  });
+
+  // Create admin user (protected - only existing admins can create new users)
+  app.post("/api/auth/register", requireAdmin, async (req, res) => {
+    try {
+      const { username, password, fullName, role } = req.body;
+
+      if (!username || !password) {
+        return res.status(400).json({ error: "Nom d'utilisateur et mot de passe requis" });
+      }
+
+      const existingUser = await storage.getUserByUsername(username);
+      if (existingUser) {
+        return res.status(400).json({ error: "Ce nom d'utilisateur existe déjà" });
+      }
+
+      const hashedPassword = await bcrypt.hash(password, 10);
+      const user = await storage.createUser({
+        username,
+        password: hashedPassword,
+        fullName: fullName || null,
+        role: role || "staff",
+      });
+
+      await storage.createAuditLog({
+        actorId: req.session.userId!,
+        action: "CREATE_USER",
+        resource: "user",
+        resourceId: user.id,
+        details: `Created user ${user.username} with role ${user.role}`,
+        hash: generateAuditHash({ userId: user.id, createdBy: req.session.userId }),
+      });
+
+      res.status(201).json({
+        id: user.id,
+        username: user.username,
+        role: user.role,
+        fullName: user.fullName,
+      });
+    } catch (error) {
+      console.error("Error creating user:", error);
+      res.status(500).json({ error: "Erreur lors de la création de l'utilisateur" });
+    }
+  });
+
+  // ============ ADMIN API ============
+
+  // Get all document requests (admin)
+  app.get("/api/admin/requests", requireAdmin, async (req, res) => {
+    try {
+      const requests = await storage.getAllDocumentRequests();
+      
+      // Enrich with citizen and service info
+      const enrichedRequests = await Promise.all(
+        requests.map(async (request) => {
+          const citizen = await storage.getCitizen(request.citizenId);
+          const service = await storage.getService(request.serviceId);
+          return {
+            ...request,
+            citizen: citizen ? {
+              nom: citizen.nom,
+              postNom: citizen.postNom,
+              prenom: citizen.prenom,
+              nationalId: citizen.nationalId,
+              phoneNumber: citizen.phoneNumber,
+            } : null,
+            service: service ? {
+              name: service.name,
+              authority: service.authority,
+            } : null,
+          };
+        })
+      );
+
+      res.json(enrichedRequests);
+    } catch (error) {
+      console.error("Error fetching admin requests:", error);
+      res.status(500).json({ error: "Erreur lors de la récupération des demandes" });
+    }
+  });
+
+  // Update request status (admin)
+  app.patch("/api/admin/requests/:id/status", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { status, notes } = req.body;
+
+      const validStatuses = ["pending", "payment", "processing", "signature", "ready", "delivered", "rejected"];
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({ error: "Statut invalide" });
+      }
+
+      const request = await storage.getDocumentRequest(id);
+      if (!request) {
+        return res.status(404).json({ error: "Demande non trouvée" });
+      }
+
+      const previousStatus = request.status;
+      const updatedRequest = await storage.updateDocumentRequest(id, {
+        status,
+        notes: notes || request.notes,
+      });
+
+      await storage.createAuditLog({
+        actorId: req.session.userId!,
+        action: "UPDATE_STATUS",
+        resource: "document_request",
+        resourceId: id,
+        details: `Status changed from ${previousStatus} to ${status}`,
+        hash: generateAuditHash({ requestId: id, previousStatus, newStatus: status }),
+      });
+
+      res.json(updatedRequest);
+    } catch (error) {
+      console.error("Error updating request status:", error);
+      res.status(500).json({ error: "Erreur lors de la mise à jour" });
+    }
+  });
+
+  // Seed admin user
+  app.post("/api/admin/seed", async (req, res) => {
+    try {
+      const existingAdmin = await storage.getUserByUsername("admin");
+      if (existingAdmin) {
+        return res.json({ message: "Admin user already exists" });
+      }
+
+      const hashedPassword = await bcrypt.hash("admin123", 10);
+      await storage.createUser({
+        username: "admin",
+        password: hashedPassword,
+        fullName: "Administrateur Système",
+        role: "admin",
+      });
+
+      res.json({ message: "Admin user created", username: "admin", password: "admin123" });
+    } catch (error) {
+      console.error("Error seeding admin:", error);
+      res.status(500).json({ error: "Failed to seed admin user" });
     }
   });
 
