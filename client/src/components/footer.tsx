@@ -71,6 +71,11 @@ export function Footer() {
                   Contact
                 </a>
               </li>
+              <li>
+                <Link href="/admin" className="hover:text-white transition-colors" data-testid="footer-link-admin">
+                  Espace Admin
+                </Link>
+              </li>
             </ul>
           </div>
 
