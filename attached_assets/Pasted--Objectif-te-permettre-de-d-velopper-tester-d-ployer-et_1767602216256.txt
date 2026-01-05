@@ -1,0 +1,269 @@
+🎯 Objectif : te permettre de développer, tester, déployer et itérer DOCU243 sur Replit, tout en restant compatible avec une future infrastructure souveraine RDC.
+
+📘 CAHIER DES CHARGES TECHNIQUE
+Plateforme Nationale DOCU243
+
+Infrastructure Publique Numérique (DPI) – RDC
+
+1. Portée Technique du Projet
+
+DOCU243 est une plateforme gouvernementale transactionnelle combinant :
+
+Identité numérique hybride
+
+Catalogue de services administratifs
+
+Paiement Mobile Money
+
+Traçabilité complète des opérations
+
+Inclusion offline / USSD
+
+Le système doit être :
+
+Modulaire
+
+Scalable
+
+API-first
+
+Offline-first
+
+Sécurisé by design
+
+2. Environnement de Développement (Replit)
+2.1 Contraintes et choix Replit
+
+Replit sert pour :
+
+Prototypage rapide
+
+Démonstration fonctionnelle
+
+Tests utilisateurs
+
+API backend MVP
+
+⚠️ Limites connues :
+
+Pas d’USSD natif → simulation via API
+
+Pas de stockage souverain → abstraction nécessaire
+
+Pas de HSM → PKI simulée
+
+👉 Conclusion : Architecture portable vers cloud souverain.
+
+3. Architecture Générale (Macro)
+3.1 Architecture logique (Hexagonale)
+[ Client ]
+   |— Web (PWA)
+   |— Mobile Lite
+   |— USSD Gateway (simulé)
+        |
+[ API Gateway ]
+        |
+[ Services Métier ]
+   |— Identity Service
+   |— Document Service
+   |— Payment Service
+   |— Workflow Service
+   |— Notification Service
+        |
+[ Data Layer ]
+   |— PostgreSQL
+   |— Redis (cache)
+   |— Object Storage (S3-like)
+
+4. Stack Technique Recommandée (Compatible Replit)
+4.1 Backend
+
+Node.js 20+
+
+NestJS (architecture propre, scalable)
+
+TypeScript
+
+REST API + Webhooks
+
+JWT + OAuth2
+
+4.2 Frontend
+
+Next.js (PWA)
+
+Tailwind CSS
+
+IndexedDB (offline cache)
+
+Service Workers
+
+4.3 Base de Données
+
+PostgreSQL (Replit DB ou Neon)
+
+Prisma ORM
+
+Redis (Upstash)
+
+4.4 Stockage fichiers
+
+S3 compatible (Cloudflare R2 / MinIO simulé)
+→ abstraction pour futur cloud souverain
+
+5. Identité Numérique – Spécifications Techniques
+5.1 Modèle de Données : CitizenIdentity
+CitizenIdentity {
+  id: UUID
+  nom: string
+  post_nom: string
+  prenom: string
+  national_id: string
+  phone_number: string
+  trust_level: 1 | 2 | 3
+  confidence_index: number (0–100)
+  created_at
+}
+
+5.2 Indice de Confiance (IC)
+Niveau	Source	Validation
+1	OCR Carte CENI	OCR + regex
+2	Telco KYC	API Telco
+3	Biométrie	Liveness + Face ID
+
+👉 Sur Replit :
+
+OCR → Tesseract.js
+
+Biométrie → API mock + hash facial
+
+6. Authentification (MFA)
+6.1 Smartphone
+
+WebAuthn (biométrie locale)
+
+JWT Refresh Tokens
+
+6.2 Téléphones basiques
+
+PIN + OTP SMS
+
+Simulation USSD via endpoint /ussd
+
+POST /ussd
+{
+  "msisdn": "243xxxx",
+  "input": "1*2"
+}
+
+7. Catalogue de Services Administratifs
+7.1 Modèle Service
+AdministrativeService {
+  id
+  name
+  authority
+  required_documents[]
+  price
+  processing_time_days
+}
+
+7.2 Workflow Zéro-Papier
+
+Étapes :
+
+Demande
+
+Paiement
+
+Instruction
+
+Signature électronique
+
+Livraison / Retrait
+
+8. Module Paiement (Switch National – MVP)
+8.1 Architecture Paiement
+[ DOCU243 ]
+     |
+[ Payment Aggregator ]
+     |
+[ M-Pesa | Airtel | Orange ]
+
+8.2 API Paiement (Mock Replit)
+POST /payments/initiate
+POST /payments/confirm
+POST /payments/webhook
+
+8.3 Réconciliation Automatique
+
+Split payment :
+
+Compte État
+
+Compte DOCU243 (RSN)
+
+9. USSD & Offline First
+9.1 USSD (Simulation)
+
+Menus courts :
+
+*243#
+1. Suivi dossier
+2. Paiement
+3. Duplicata
+
+9.2 PWA Offline
+
+Cache formulaires
+
+Sync background
+
+Taille < 5 Mo
+
+10. Logistique & Last Mile
+10.1 Adressage Numérique
+
+Plus Codes stockés comme coordonnées
+
+Fallback : point relais
+
+10.2 Retrait Sécurisé
+
+QR Code
+
+OTP SMS
+
+Journal de remise
+
+11. Sécurité & Traçabilité
+11.1 Sécurité
+
+TLS 1.3
+
+AES-256 au repos
+
+RBAC strict agents
+
+11.2 Blockchain de Traçabilité (MVP)
+
+Hash SHA-256
+
+Append-only log
+
+AuditLog {
+  actor_id
+  action
+  resource
+  hash
+  timestamp
+}
+
+12. Conformité & Données
+
+Privacy by Design
+
+Minimisation des données
+
+Consentement explicite
+
+Droit à l’oubli (hors obligations légales)

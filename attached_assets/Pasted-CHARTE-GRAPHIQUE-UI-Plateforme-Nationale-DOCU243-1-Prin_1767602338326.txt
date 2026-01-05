@@ -1,0 +1,169 @@
+CHARTE GRAPHIQUE & UI
+Plateforme Nationale DOCU243
+1. Principes de Design
+
+DOCU243 doit transmettre visuellement :
+
+🇨🇩 Autorité de l’État
+
+🔐 Confiance & sécurité
+
+🌍 Inclusion & accessibilité
+
+⚙️ Simplicité d’usage (low literacy friendly)
+
+👉 Le bleu institutionnel est dominant, les autres couleurs sont fonctionnelles et symboliques.
+
+2. Palette Officielle – Couleurs du Congo
+2.1 Couleurs Primaires
+Usage	Couleur	Code
+Bleu principal (dominant)	Institution / confiance	#3774b6
+Rouge national	Alertes critiques / erreurs	#ce1021
+Jaune national	Validation / succès	#f7d116
+2.2 Couleurs Secondaires (UI)
+Usage	Couleur	Code
+Bleu foncé	Header / Footer	#1f3f66
+Bleu clair	Background sections	#eaf1f9
+Vert succès	Paiement validé	#2ecc71
+Orange attention	Actions importantes	#f39c12
+2.3 Couleurs Neutres
+Usage	Couleur	Code
+Texte principal	Noir doux	#1a1a1a
+Texte secondaire	Gris	#6b7280
+Bordures	Gris clair	#e5e7eb
+Fond général	Blanc cassé	#f9fafb
+3. Hiérarchie des Couleurs (Règles strictes)
+🔵 Bleu #3774b6 (OBLIGATOIRE)
+
+Utilisé pour :
+
+Boutons primaires
+
+Barre de navigation
+
+Liens principaux
+
+Progression des dossiers
+
+États “en cours”
+
+⚠️ Jamais utilisé pour les erreurs
+
+🔴 Rouge (#ce1021)
+
+Utilisé uniquement pour :
+
+Erreurs bloquantes
+
+Rejets administratifs
+
+Échecs de paiement
+
+🟡 Jaune (#f7d116)
+
+Utilisé pour :
+
+Étapes en attente
+
+Notifications importantes
+
+États “à compléter”
+
+4. Boutons – Spécifications
+Bouton Principal (CTA)
+background-color: #3774b6;
+color: #ffffff;
+border-radius: 8px;
+font-weight: 600;
+
+
+Hover :
+
+background-color: #2f63a0;
+
+Bouton Secondaire
+background-color: transparent;
+border: 2px solid #3774b6;
+color: #3774b6;
+
+Bouton Critique
+background-color: #ce1021;
+color: #ffffff;
+
+5. États & Feedback Utilisateur
+État	Couleur	Exemple
+En cours	#3774b6	Traitement dossier
+Validé	#2ecc71	Paiement OK
+En attente	#f7d116	Pièce manquante
+Rejeté	#ce1021	Dossier refusé
+6. Accessibilité (Obligatoire)
+
+Contraste WCAG AA minimum
+
+Texte ≥ 14px
+
+Icônes + texte (pas couleur seule)
+
+Mode Low Vision prêt (contraste élevé)
+
+7. Intégration Tailwind CSS (Replit)
+7.1 tailwind.config.js
+module.exports = {
+  theme: {
+    extend: {
+      colors: {
+        primary: "#3774b6",
+        primaryDark: "#1f3f66",
+        primaryLight: "#eaf1f9",
+
+        danger: "#ce1021",
+        warning: "#f7d116",
+        success: "#2ecc71",
+
+        textMain: "#1a1a1a",
+        textMuted: "#6b7280",
+        borderLight: "#e5e7eb",
+        background: "#f9fafb",
+      }
+    }
+  }
+}
+
+8. Structure Visuelle Recommandée
+Header
+
+Fond : #3774b6
+
+Texte : blanc
+
+Logo DOCU243 blanc
+
+Body
+
+Fond : #f9fafb
+
+Cartes : blanc + bordure légère
+
+Footer
+
+Fond : #1f3f66
+
+Texte : blanc/gris clair
+
+9. Symbolique Politique & Institutionnelle
+
+Le bleu = continuité de l’État, confiance
+
+Le jaune = citoyen, vigilance
+
+Le rouge = gravité, décision officielle
+
+👉 DOCU243 doit ressembler à un service de l’État moderne, pas à une startup privée.
+
+10. Validation Finale
+
+✔ Conforme identité RDC
+✔ Compatible mobile & USSD
+✔ Lisible bas débit
+✔ Prêt pour PWA
+✔ Prêt pour déploiement national
