@@ -125,16 +125,19 @@ export const insertUssdSessionSchema = createInsertSchema(ussdSessions).omit({
 export type InsertUssdSession = z.infer<typeof insertUssdSessionSchema>;
 export type UssdSession = typeof ussdSessions.$inferSelect;
 
-// Legacy user schema for compatibility
+// Admin/Staff users for backend management
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
+  role: text("role").notNull().default("staff"), // admin, staff
+  fullName: text("full_name"),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const insertUserSchema = createInsertSchema(users).pick({
-  username: true,
-  password: true,
+export const insertUserSchema = createInsertSchema(users).omit({
+  id: true,
+  createdAt: true,
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;

@@ -44,6 +44,7 @@ export interface IStorage {
   getDocumentRequest(id: string): Promise<DocumentRequest | undefined>;
   getDocumentRequestByTrackingCode(trackingCode: string): Promise<DocumentRequest | undefined>;
   getDocumentRequestsByCitizen(citizenId: string): Promise<DocumentRequest[]>;
+  getAllDocumentRequests(): Promise<DocumentRequest[]>;
   createDocumentRequest(request: InsertDocumentRequest): Promise<DocumentRequest>;
   updateDocumentRequest(id: string, updates: Partial<DocumentRequest>): Promise<DocumentRequest | undefined>;
 
@@ -137,6 +138,10 @@ export class DatabaseStorage implements IStorage {
 
   async getDocumentRequestsByCitizen(citizenId: string): Promise<DocumentRequest[]> {
     return db.select().from(documentRequests).where(eq(documentRequests.citizenId, citizenId));
+  }
+
+  async getAllDocumentRequests(): Promise<DocumentRequest[]> {
+    return db.select().from(documentRequests).orderBy(documentRequests.createdAt);
   }
 
   async createDocumentRequest(insertRequest: InsertDocumentRequest): Promise<DocumentRequest> {
