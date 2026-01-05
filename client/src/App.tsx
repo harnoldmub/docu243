@@ -14,6 +14,8 @@ import Tracking from "@/pages/tracking";
 import Request from "@/pages/request";
 import Payment from "@/pages/payment";
 import Account from "@/pages/account";
+import AdminLogin from "@/pages/admin-login";
+import AdminDashboard from "@/pages/admin-dashboard";
 
 function Router() {
   return (
@@ -28,6 +30,9 @@ function Router() {
       <Route path="/payment" component={Payment} />
       <Route path="/compte" component={Account} />
       <Route path="/account" component={Account} />
+      <Route path="/admin/login" component={AdminLogin} />
+      <Route path="/admin/dashboard" component={AdminDashboard} />
+      <Route path="/admin" component={AdminLogin} />
       <Route component={NotFound} />
     </Switch>
   );
