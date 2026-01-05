@@ -55,6 +55,7 @@ export const documentRequests = pgTable("document_requests", {
   paymentStatus: text("payment_status").notNull().default("unpaid"), // unpaid, pending, paid, failed
   paymentReference: text("payment_reference"),
   rejectionReason: text("rejection_reason"),
+  notes: text("notes"), // Internal admin notes
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

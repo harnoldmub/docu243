@@ -114,12 +114,40 @@ Design principles emphasize institutional authority, universal accessibility, an
 ### Data Seeding
 - `POST /api/seed` - Seed initial service catalog data
 
+### Authentication
+- `POST /api/auth/login` - Admin/Staff login with username and password
+- `POST /api/auth/logout` - Logout and destroy session
+- `GET /api/auth/me` - Get current authenticated user
+- `POST /api/auth/register` - Create new admin/staff user (protected, admin only)
+
+### Admin API
+- `GET /api/admin/requests` - Get all document requests with citizen/service details (protected)
+- `PATCH /api/admin/requests/:id/status` - Update request status (protected)
+- `POST /api/admin/seed` - Create default admin user
+
+## Admin Access
+
+Default admin credentials (for testing):
+- **Username**: `admin`
+- **Password**: `admin123`
+- **Access URL**: `/admin` or `/admin/login`
+
+Admin features:
+- View all document requests with statistics
+- Update request status (pending → processing → ready → delivered)
+- Add internal notes to requests
+- Create new staff/admin users
+- Full audit trail logging
+
 ## Recent Changes (January 2026)
 
-- Implemented complete PostgreSQL database with citizens, services, documentRequests, payments, and auditLogs tables
+- Implemented complete PostgreSQL database with citizens, services, documentRequests, payments, auditLogs, and users tables
 - Added DatabaseStorage with full CRUD operations for all entities
 - Created comprehensive API routes for all MVP features
 - Built frontend pages: Home, Services, Tracking, Request, Payment, Account
 - Added route aliases for both French and English paths
 - Integrated Mobile Money payment flow with tracking
 - Added workflow status progression endpoint with audit logging
+- Added admin authentication with bcrypt password hashing
+- Built admin dashboard with request management and user creation
+- Implemented session-based authentication with express-session
