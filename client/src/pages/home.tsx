@@ -155,7 +155,7 @@ export default function Home() {
             {popularServices.map((service) => {
               const Icon = iconMap[service.icon] || FileText;
               return (
-                <Link key={service.id} href={`/demande?serviceId=${service.id}`}>
+                <Link key={service.id} href={`/demande/${service.id}`}>
                   <Card 
                     className="group cursor-pointer overflow-visible transition-all hover-elevate"
                     data-testid={`card-popular-${service.id}`}
