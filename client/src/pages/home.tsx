@@ -14,41 +14,26 @@ import {
   Building2,
   Heart,
   GraduationCap,
-  ArrowRight
+  ArrowRight,
+  Car,
+  Home as HomeIcon,
+  Briefcase
 } from "lucide-react";
 import { useState } from "react";
 import { useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
+import type { Service } from "@shared/schema";
 
-const popularServices = [
-  {
-    id: "passport",
-    name: "Passeport Biométrique",
-    icon: FileText,
-    description: "Demande ou renouvellement",
-    processingTime: "14 jours",
-  },
-  {
-    id: "birth",
-    name: "Acte de Naissance",
-    icon: Users,
-    description: "Copie intégrale ou extrait",
-    processingTime: "7 jours",
-  },
-  {
-    id: "marriage",
-    name: "Acte de Mariage",
-    icon: Heart,
-    description: "Certificat officiel",
-    processingTime: "5 jours",
-  },
-  {
-    id: "education",
-    name: "Diplôme National",
-    icon: GraduationCap,
-    description: "Authentification",
-    processingTime: "10 jours",
-  },
-];
+const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
+  FileText,
+  Users,
+  Heart,
+  GraduationCap,
+  Car,
+  Home: HomeIcon,
+  Briefcase,
+  Building2,
+};
 
 const stats = [
   { value: "2M+", label: "Citoyens inscrits" },
@@ -60,6 +45,12 @@ const stats = [
 export default function Home() {
   const [trackingCode, setTrackingCode] = useState("");
   const [, setLocation] = useLocation();
+
+  const { data: services = [] } = useQuery<Service[]>({
+    queryKey: ["/api/services"],
+  });
+
+  const popularServices = services.slice(0, 4);
 
   const handleTrackingSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -162,9 +153,9 @@ export default function Home() {
           </div>
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {popularServices.map((service) => {
-              const Icon = service.icon;
+              const Icon = iconMap[service.icon] || FileText;
               return (
-                <Link key={service.id} href="/services">
+                <Link key={service.id} href={`/demande?serviceId=${service.id}`}>
                   <Card 
                     className="group cursor-pointer overflow-visible transition-all hover-elevate"
                     data-testid={`card-popular-${service.id}`}
@@ -174,10 +165,10 @@ export default function Home() {
                         <Icon className="h-7 w-7" />
                       </div>
                       <h3 className="font-semibold">{service.name}</h3>
-                      <p className="mt-1 text-sm text-muted-foreground">{service.description}</p>
+                      <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{service.description}</p>
                       <div className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground">
                         <Clock className="h-3.5 w-3.5" />
-                        <span>{service.processingTime}</span>
+                        <span>{service.processingTimeDays} jours</span>
                       </div>
                     </CardContent>
                   </Card>
