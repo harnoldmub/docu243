@@ -1,4 +1,4 @@
-import { Shield, Menu, User, Bell } from "lucide-react";
+import { Menu, User, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Link } from "wouter";
+import logoImage from "@assets/ChatGPT_Image_Jan_13,_2026,_08_02_49_AM_1768287813548.png";
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -33,16 +34,12 @@ export function Header({ onMenuClick, showMobileMenu = true }: HeaderProps) {
               <Menu className="h-5 w-5" />
             </Button>
           )}
-          <Link href="/" className="flex items-center gap-2" data-testid="link-home">
-            <div className="flex h-9 w-9 items-center justify-center rounded-md bg-white/10 backdrop-blur">
-              <Shield className="h-5 w-5" />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-lg font-bold tracking-tight">DOCU243</span>
-              <span className="hidden text-xs opacity-80 sm:block">
-                Plateforme Nationale
-              </span>
-            </div>
+          <Link href="/" className="flex items-center" data-testid="link-home">
+            <img 
+              src={logoImage} 
+              alt="DOCU243 - Plateforme Officielle de la RDC" 
+              className="h-10 w-auto object-contain"
+            />
           </Link>
         </div>
 

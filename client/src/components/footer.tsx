@@ -1,5 +1,6 @@
-import { Shield, Phone, Mail, MapPin } from "lucide-react";
+import { Phone, Mail, MapPin } from "lucide-react";
 import { Link } from "wouter";
+import logoImage from "@assets/ChatGPT_Image_Jan_13,_2026,_08_02_49_AM_1768287813548.png";
 
 export function Footer() {
   return (
@@ -7,15 +8,13 @@ export function Footer() {
       <div className="mx-auto max-w-7xl px-4 py-12">
         <div className="grid gap-8 md:grid-cols-4">
           <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <div className="flex h-10 w-10 items-center justify-center rounded-md bg-white/10">
-                <Shield className="h-6 w-6" />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold">DOCU243</h3>
-                <p className="text-sm text-white/70">Plateforme Nationale</p>
-              </div>
-            </div>
+            <Link href="/">
+              <img 
+                src={logoImage} 
+                alt="DOCU243 - Plateforme Officielle de la RDC" 
+                className="h-12 w-auto object-contain"
+              />
+            </Link>
             <p className="text-sm text-white/70 leading-relaxed">
               Infrastructure Publique Numérique de la République Démocratique du Congo.
               Services administratifs modernisés et accessibles à tous.
