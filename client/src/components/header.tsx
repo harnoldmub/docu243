@@ -20,8 +20,8 @@ interface HeaderProps {
 
 export function Header({ onMenuClick, showMobileMenu = true }: HeaderProps) {
   return (
-    <header className="sticky top-0 z-50 w-full bg-primary text-primary-foreground">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 md:h-20">
+    <header className="sticky top-0 z-50 w-full bg-primary text-primary-foreground py-2">
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4">
         <div className="flex items-center gap-3">
           {showMobileMenu && (
             <Button
@@ -38,7 +38,7 @@ export function Header({ onMenuClick, showMobileMenu = true }: HeaderProps) {
             <img 
               src={logoImage} 
               alt="DOCU243 - Plateforme Officielle de la RDC" 
-              className="h-14 w-auto object-contain sm:h-16 md:h-[70px]"
+              className="h-[60px] w-auto object-contain sm:h-[80px] md:h-[100px]"
             />
           </Link>
         </div>
