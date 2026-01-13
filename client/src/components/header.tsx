@@ -38,7 +38,7 @@ export function Header({ onMenuClick, showMobileMenu = true }: HeaderProps) {
             <img 
               src={logoImage} 
               alt="DOCU243 - Plateforme Officielle de la RDC" 
-              className="h-10 w-auto object-contain"
+              className="h-14 w-auto object-contain"
             />
           </Link>
         </div>

@@ -12,7 +12,7 @@ export function Footer() {
               <img 
                 src={logoImage} 
                 alt="DOCU243 - Plateforme Officielle de la RDC" 
-                className="h-12 w-auto object-contain"
+                className="h-16 w-auto object-contain"
               />
             </Link>
             <p className="text-sm text-white/70 leading-relaxed">
