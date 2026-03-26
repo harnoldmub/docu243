@@ -12,6 +12,10 @@ const PgSession = connectPgSimple(session);
 const app = express();
 const httpServer = createServer(app);
 
+// Trust the reverse proxy in production (Replit deployment)
+// Required for secure cookies to work behind HTTPS proxy
+app.set("trust proxy", 1);
+
 declare module "http" {
   interface IncomingMessage {
     rawBody: unknown;
