@@ -48,6 +48,9 @@ function Router() {
       <Route path="/services">
         {() => { window.location.href = "/catalogue"; return null; }}
       </Route>
+      <Route path="/demarches">
+        {() => { window.location.href = "/catalogue"; return null; }}
+      </Route>
       <Route path="/suivi">
         {() => { window.location.href = "/dashboard"; return null; }}
       </Route>

@@ -52,7 +52,12 @@ export default function ProcedureDetail() {
             setLocation(`/application/${data.id}`);
         },
         onError: (error: Error) => {
-            toast({ title: "Erreur", description: error.message, variant: "destructive" });
+            if (error.message.includes("401")) {
+                toast({ title: "Session expirée", description: "Veuillez vous reconnecter.", variant: "destructive" });
+                setLocation("/auth");
+            } else {
+                toast({ title: "Erreur", description: error.message, variant: "destructive" });
+            }
         },
     });
 

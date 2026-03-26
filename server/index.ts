@@ -1,9 +1,13 @@
 import express, { type Request, Response, NextFunction } from "express";
 import session from "express-session";
+import connectPgSimple from "connect-pg-simple";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import { initializeDatabase } from "./init";
+import { pool } from "./db";
+
+const PgSession = connectPgSimple(session);
 
 const app = express();
 const httpServer = createServer(app);
@@ -26,6 +30,11 @@ app.use(express.urlencoded({ extended: false }));
 
 app.use(
   session({
+    store: new PgSession({
+      pool,
+      createTableIfMissing: true,
+      ttl: 7 * 24 * 60 * 60, // 7 days in seconds
+    }),
     secret: process.env.SESSION_SECRET || "docu243-dev-secret",
     resave: false,
     saveUninitialized: false,
@@ -33,7 +42,7 @@ app.use(
       secure: process.env.NODE_ENV === "production",
       httpOnly: true,
       sameSite: "lax",
-      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     },
   })
 );

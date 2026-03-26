@@ -28,6 +28,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: user, isLoading } = useQuery<User | null>({
         queryKey: ["/api/auth/me"],
         retry: false,
+        staleTime: 5 * 60 * 1000, // 5 minutes
+        refetchOnWindowFocus: true,
+        refetchInterval: 10 * 60 * 1000, // recheck every 10 min
+        queryFn: async () => {
+            const res = await fetch("/api/auth/me", { credentials: "include" });
+            if (res.status === 401) return null;
+            if (!res.ok) throw new Error("Erreur de connexion");
+            return res.json();
+        },
     });
 
     const loginMutation = useMutation({
