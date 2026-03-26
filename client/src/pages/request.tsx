@@ -31,7 +31,15 @@ import {
   Shield,
   AlertCircle,
 } from "lucide-react";
-import type { Service } from "@shared/schema";
+
+type LegacyService = {
+  id: string;
+  name: string;
+  authority: string;
+  price: number;
+  processingTimeDays: number;
+  requiredDocuments?: string[];
+};
 
 const requestFormSchema = z.object({
   nom: z.string().min(2, "Le nom doit contenir au moins 2 caractères"),
@@ -49,7 +57,7 @@ export default function Request() {
   const { toast } = useToast();
   const [step, setStep] = useState(1);
 
-  const { data: service, isLoading } = useQuery<Service>({
+  const { data: service, isLoading } = useQuery<LegacyService>({
     queryKey: ["/api/services", id],
   });
 

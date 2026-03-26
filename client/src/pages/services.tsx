@@ -21,7 +21,16 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import type { Service } from "@shared/schema";
+
+type LegacyService = {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  price: number;
+  icon: string;
+  processingTimeDays: number;
+};
 
 const categories = [
   { value: "all", label: "Tous" },
@@ -39,7 +48,7 @@ export default function Services() {
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [sortBy, setSortBy] = useState("name");
 
-  const { data: services, isLoading } = useQuery<Service[]>({
+  const { data: services, isLoading } = useQuery<LegacyService[]>({
     queryKey: ["/api/services"],
   });
 
@@ -59,7 +68,7 @@ export default function Services() {
       return 0;
     });
 
-  const handleSelectService = (service: Service) => {
+  const handleSelectService = (service: LegacyService) => {
     setLocation(`/demande/${service.id}`);
   };
 

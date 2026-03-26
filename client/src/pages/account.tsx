@@ -23,11 +23,32 @@ import {
   Loader2,
 } from "lucide-react";
 import { Link } from "wouter";
-import type { Citizen, DocumentRequest, Service } from "@shared/schema";
+
+type LegacyCitizen = {
+  prenom: string;
+  nom: string;
+  postNom: string;
+  nationalId: string;
+  phoneNumber: string;
+  trustLevel: number;
+  confidenceIndex: number;
+};
+
+type LegacyService = {
+  name: string;
+};
+
+type LegacyDocumentRequest = {
+  id: string;
+  trackingCode: string;
+  status: string;
+  paymentStatus: string;
+  service?: LegacyService;
+};
 
 interface CitizenRequestsResponse {
-  citizen: Citizen;
-  requests: (DocumentRequest & { service?: Service })[];
+  citizen: LegacyCitizen;
+  requests: LegacyDocumentRequest[];
 }
 
 export default function Account() {

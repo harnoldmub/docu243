@@ -15,11 +15,20 @@ import {
   Home,
   Briefcase
 } from "lucide-react";
-import type { Service } from "@shared/schema";
+
+type LegacyService = {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  icon: string;
+  price: number;
+  processingTimeDays: number;
+};
 
 interface ServiceCardProps {
-  service: Service;
-  onSelect: (service: Service) => void;
+  service: LegacyService;
+  onSelect: (service: LegacyService) => void;
 }
 
 const iconMap: Record<string, typeof FileText> = {

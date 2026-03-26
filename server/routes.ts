@@ -1,8 +1,18 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
-import { storage, generateTrackingCode, generateAuditHash } from "./storage";
-import { insertCitizenSchema, insertServiceSchema, insertPaymentSchema } from "@shared/schema";
+import { storage } from "./storage";
+import { db } from "./db";
 import bcrypt from "bcrypt";
+import { seedCatalog } from "./seed";
+import {
+  users,
+  procedures,
+  procedureFields,
+  procedureRequiredDocuments,
+  applications,
+  applicationDocuments,
+} from "@shared/schema";
+import { eq, desc, asc, sql } from "drizzle-orm";
 
 declare module "express-session" {
   interface SessionData {
@@ -11,684 +21,633 @@ declare module "express-session" {
   }
 }
 
-function requireAdmin(req: Request, res: Response, next: NextFunction) {
+// Middleware for authentication
+function requireAuth(req: Request, res: Response, next: NextFunction) {
   if (!req.session.userId) {
-    return res.status(401).json({ error: "Non autorisé" });
+    return res.status(401).json({ error: "Non connecté" });
   }
-  if (req.session.role !== "admin" && req.session.role !== "staff") {
+  next();
+}
+
+// Middleware for agent/admin access
+function requireAgent(req: Request, res: Response, next: NextFunction) {
+  if (!req.session.userId) {
+    return res.status(401).json({ error: "Non connecté" });
+  }
+  if (!["agent", "admin", "super_admin"].includes(req.session.role || "")) {
     return res.status(403).json({ error: "Accès refusé" });
   }
   next();
+}
+
+function requireAdmin(req: Request, res: Response, next: NextFunction) {
+  if (!req.session.userId) {
+    return res.status(401).json({ error: "Non connecté" });
+  }
+  if (!["admin", "super_admin"].includes(req.session.role || "")) {
+    return res.status(403).json({ error: "Accès refusé" });
+  }
+  next();
+}
+
+function slugify(input: string) {
+  return input
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function sanitizeUser(user: any) {
+  if (!user) return user;
+  const { password, ...safeUser } = user;
+  return safeUser;
 }
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  // ============ SERVICES API ============
-  
-  // Get all services
-  app.get("/api/services", async (req, res) => {
+  // ============ AUTHENTICATION ============
+
+  app.post("/api/auth/register", async (req: Request, res: Response) => {
     try {
-      const services = await storage.getAllServices();
-      res.json(services);
-    } catch (error) {
-      console.error("Error fetching services:", error);
-      res.status(500).json({ error: "Failed to fetch services" });
-    }
-  });
+      const { prenom, nom, email, phone, password } = req.body;
+      const existing = await storage.getUserByEmail(email);
+      if (existing) return res.status(400).json({ error: "Email déjà utilisé" });
 
-  // Get single service
-  app.get("/api/services/:id", async (req, res) => {
-    try {
-      const service = await storage.getService(req.params.id);
-      if (!service) {
-        return res.status(404).json({ error: "Service not found" });
-      }
-      res.json(service);
-    } catch (error) {
-      console.error("Error fetching service:", error);
-      res.status(500).json({ error: "Failed to fetch service" });
-    }
-  });
-
-  // ============ DOCUMENT REQUESTS API ============
-
-  // Create document request
-  app.post("/api/requests", async (req, res) => {
-    try {
-      const { nom, postNom, prenom, nationalId, phoneNumber, serviceId } = req.body;
-
-      // Validate service exists
-      const service = await storage.getService(serviceId);
-      if (!service) {
-        return res.status(400).json({ error: "Service not found" });
-      }
-
-      // Find or create citizen
-      let citizen = await storage.getCitizenByNationalId(nationalId);
-      if (!citizen) {
-        citizen = await storage.createCitizen({
-          nom,
-          postNom,
-          prenom,
-          nationalId,
-          phoneNumber,
-          trustLevel: 1,
-          confidenceIndex: 25,
-        });
-      }
-
-      // Create document request
-      const trackingCode = generateTrackingCode();
-      const documentRequest = await storage.createDocumentRequest({
-        citizenId: citizen.id,
-        serviceId,
-        trackingCode,
-        status: "pending",
-        paymentStatus: "unpaid",
-        submittedDocuments: [],
+      const hashedPassword = await bcrypt.hash(password, 10);
+      const user = await storage.createUser({
+        prenom,
+        nom,
+        email,
+        phone,
+        password: hashedPassword,
+        role: "citizen",
       });
 
-      // Create audit log
-      await storage.createAuditLog({
-        actorId: citizen.id,
-        action: "CREATE_REQUEST",
-        resource: "document_request",
-        resourceId: documentRequest.id,
-        details: `Created request for service: ${service.name}`,
-        hash: generateAuditHash({ citizenId: citizen.id, serviceId, trackingCode }),
-      });
+      req.session.userId = user.id;
+      req.session.role = user.role;
 
       res.status(201).json({
-        ...documentRequest,
-        trackingCode,
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        prenom: user.prenom,
+        nom: user.nom,
       });
-    } catch (error) {
-      console.error("Error creating request:", error);
-      res.status(500).json({ error: "Failed to create request" });
+    } catch (e) {
+      res.status(500).json({ error: "Erreur lors de l'inscription" });
     }
   });
 
-  // Get document request by ID
-  app.get("/api/requests/:id", async (req, res) => {
+  app.post("/api/auth/login", async (req: Request, res: Response) => {
     try {
-      const request = await storage.getDocumentRequest(req.params.id);
-      if (!request) {
-        return res.status(404).json({ error: "Request not found" });
-      }
-      res.json(request);
-    } catch (error) {
-      console.error("Error fetching request:", error);
-      res.status(500).json({ error: "Failed to fetch request" });
-    }
-  });
-
-  // Update document request status (workflow progression)
-  app.patch("/api/requests/:id/status", async (req, res) => {
-    try {
-      const { status, rejectionReason } = req.body;
-      const validStatuses = ["pending", "payment", "processing", "signature", "ready", "delivered", "rejected"];
-      
-      if (!validStatuses.includes(status)) {
-        return res.status(400).json({ error: "Invalid status" });
-      }
-
-      const existingRequest = await storage.getDocumentRequest(req.params.id);
-      if (!existingRequest) {
-        return res.status(404).json({ error: "Request not found" });
-      }
-
-      const updates: any = { status };
-      if (status === "rejected" && rejectionReason) {
-        updates.rejectionReason = rejectionReason;
-      }
-
-      const updated = await storage.updateDocumentRequest(req.params.id, updates);
-
-      // Create audit log for status change
-      await storage.createAuditLog({
-        actorId: "system",
-        action: "STATUS_UPDATE",
-        resource: "document_request",
-        resourceId: req.params.id,
-        details: `Status changed from ${existingRequest.status} to ${status}`,
-        hash: generateAuditHash({ requestId: req.params.id, oldStatus: existingRequest.status, newStatus: status }),
-      });
-
-      res.json(updated);
-    } catch (error) {
-      console.error("Error updating request status:", error);
-      res.status(500).json({ error: "Failed to update status" });
-    }
-  });
-
-  // Get citizen requests (for account page)
-  app.get("/api/citizens/:nationalId/requests", async (req, res) => {
-    try {
-      const citizen = await storage.getCitizenByNationalId(req.params.nationalId);
-      if (!citizen) {
-        return res.status(404).json({ error: "Citizen not found" });
-      }
-
-      const requests = await storage.getDocumentRequestsByCitizen(citizen.id);
-      
-      // Enrich with service details
-      const enrichedRequests = await Promise.all(
-        requests.map(async (request) => {
-          const service = await storage.getService(request.serviceId);
-          return { ...request, service };
-        })
-      );
-
-      res.json({ citizen, requests: enrichedRequests });
-    } catch (error) {
-      console.error("Error fetching citizen requests:", error);
-      res.status(500).json({ error: "Failed to fetch citizen requests" });
-    }
-  });
-
-  // ============ TRACKING API ============
-
-  // Track document by code
-  app.get("/api/tracking/:code", async (req, res) => {
-    try {
-      const request = await storage.getDocumentRequestByTrackingCode(req.params.code);
-      if (!request) {
-        return res.status(404).json({ error: "Tracking code not found" });
-      }
-
-      // Get associated service
-      const service = await storage.getService(request.serviceId);
-
-      res.json({
-        ...request,
-        service,
-      });
-    } catch (error) {
-      console.error("Error tracking request:", error);
-      res.status(500).json({ error: "Failed to track request" });
-    }
-  });
-
-  // ============ PAYMENTS API ============
-
-  // Initiate payment
-  app.post("/api/payments/initiate", async (req, res) => {
-    try {
-      const { documentRequestId, provider, phoneNumber, amount } = req.body;
-
-      // Validate document request exists
-      const docRequest = await storage.getDocumentRequest(documentRequestId);
-      if (!docRequest && documentRequestId !== "demo-request") {
-        return res.status(400).json({ error: "Document request not found" });
-      }
-
-      const payment = await storage.createPayment({
-        documentRequestId,
-        provider,
-        phoneNumber,
-        amount,
-        status: "pending",
-      });
-
-      // For MVP simulation: immediately process payment and update status
-      // In production, this would be handled by Mobile Money API callback
-      const transactionId = `TXN-${Date.now()}`;
-      
-      await storage.updatePayment(payment.id, {
-        status: "confirmed",
-        transactionId,
-      });
-
-      // Update document request if it exists
-      if (docRequest) {
-        await storage.updateDocumentRequest(documentRequestId, {
-          paymentStatus: "paid",
-          paymentReference: payment.id,
-          status: "processing",
-        });
-      }
-
-      // Create audit log
-      await storage.createAuditLog({
-        actorId: "system",
-        action: "PAYMENT_CONFIRMED",
-        resource: "payment",
-        resourceId: payment.id,
-        details: `Payment of ${amount} CDF confirmed via ${provider}`,
-        hash: generateAuditHash({ paymentId: payment.id, amount, provider }),
-      });
-
-      res.status(201).json({
-        ...payment,
-        status: "confirmed",
-        transactionId,
-      });
-    } catch (error) {
-      console.error("Error initiating payment:", error);
-      res.status(500).json({ error: "Failed to initiate payment" });
-    }
-  });
-
-  // Confirm payment (webhook simulation)
-  app.post("/api/payments/confirm", async (req, res) => {
-    try {
-      const { paymentId, transactionId } = req.body;
-
-      const payment = await storage.updatePayment(paymentId, {
-        status: "confirmed",
-        transactionId,
-      });
-
-      if (payment) {
-        await storage.updateDocumentRequest(payment.documentRequestId, {
-          paymentStatus: "paid",
-          paymentReference: paymentId,
-        });
-      }
-
-      res.json({ success: true });
-    } catch (error) {
-      console.error("Error confirming payment:", error);
-      res.status(500).json({ error: "Failed to confirm payment" });
-    }
-  });
-
-  // ============ USSD SIMULATION API ============
-
-  // USSD endpoint
-  app.post("/api/ussd", async (req, res) => {
-    try {
-      const { msisdn, input } = req.body;
-
-      // Simple USSD menu simulation
-      let response = "";
-      const parts = input ? input.split("*") : [];
-
-      if (!input || input === "") {
-        response = `CON Bienvenue sur DOCU243
-1. Suivi de dossier
-2. Paiement
-3. Duplicata`;
-      } else if (parts[0] === "1") {
-        if (parts.length === 1) {
-          response = `CON Entrez votre code de suivi:`;
-        } else {
-          const trackingCode = parts[1];
-          const request = await storage.getDocumentRequestByTrackingCode(trackingCode);
-          if (request) {
-            const statusLabels: Record<string, string> = {
-              pending: "En attente",
-              payment: "Paiement requis",
-              processing: "En traitement",
-              signature: "En signature",
-              ready: "Pret au retrait",
-              delivered: "Livre",
-              rejected: "Rejete",
-            };
-            response = `END Dossier: ${trackingCode}
-Statut: ${statusLabels[request.status] || request.status}
-Paiement: ${request.paymentStatus === "paid" ? "OK" : "En attente"}`;
-          } else {
-            response = `END Code non trouve: ${trackingCode}`;
-          }
-        }
-      } else if (parts[0] === "2") {
-        response = `END Service de paiement
-Veuillez utiliser l'application web pour le paiement.`;
-      } else if (parts[0] === "3") {
-        response = `END Demande de duplicata
-Veuillez vous rendre au bureau le plus proche.`;
-      } else {
-        response = `END Option invalide`;
-      }
-
-      res.json({ response });
-    } catch (error) {
-      console.error("USSD error:", error);
-      res.json({ response: "END Erreur systeme. Reessayez plus tard." });
-    }
-  });
-
-  // ============ CITIZENS API ============
-
-  // Get citizen by national ID
-  app.get("/api/citizens/:nationalId", async (req, res) => {
-    try {
-      const citizen = await storage.getCitizenByNationalId(req.params.nationalId);
-      if (!citizen) {
-        return res.status(404).json({ error: "Citizen not found" });
-      }
-      res.json(citizen);
-    } catch (error) {
-      console.error("Error fetching citizen:", error);
-      res.status(500).json({ error: "Failed to fetch citizen" });
-    }
-  });
-
-  // ============ SEED DATA ============
-  
-  // Seed initial services
-  app.post("/api/seed", async (req, res) => {
-    try {
-      const existingServices = await storage.getAllServices();
-      if (existingServices.length > 0) {
-        return res.json({ message: "Services already seeded", count: existingServices.length });
-      }
-
-      const initialServices = [
-        {
-          name: "Passeport Biométrique",
-          description: "Demande ou renouvellement de passeport biométrique congolais",
-          authority: "Direction Générale de Migration",
-          requiredDocuments: ["Carte d'identité nationale", "Acte de naissance", "Photos d'identité (4x)"],
-          price: 185000,
-          processingTimeDays: 14,
-          category: "identite",
-          icon: "passport",
-        },
-        {
-          name: "Acte de Naissance",
-          description: "Copie intégrale ou extrait d'acte de naissance",
-          authority: "État Civil",
-          requiredDocuments: ["Carte d'identité du demandeur", "Livret de famille (si disponible)"],
-          price: 15000,
-          processingTimeDays: 7,
-          category: "etat-civil",
-          icon: "birth",
-        },
-        {
-          name: "Acte de Mariage",
-          description: "Certificat officiel de mariage",
-          authority: "État Civil",
-          requiredDocuments: ["Cartes d'identité des époux", "Actes de naissance des époux"],
-          price: 25000,
-          processingTimeDays: 5,
-          category: "etat-civil",
-          icon: "marriage",
-        },
-        {
-          name: "Permis de Conduire",
-          description: "Demande ou renouvellement de permis de conduire",
-          authority: "Direction des Transports Routiers",
-          requiredDocuments: ["Carte d'identité nationale", "Certificat médical", "Photos d'identité (2x)"],
-          price: 75000,
-          processingTimeDays: 21,
-          category: "transport",
-          icon: "driver",
-        },
-        {
-          name: "Attestation de Diplôme",
-          description: "Authentification et attestation de diplôme national",
-          authority: "Ministère de l'Éducation",
-          requiredDocuments: ["Original du diplôme", "Carte d'identité nationale"],
-          price: 35000,
-          processingTimeDays: 10,
-          category: "education",
-          icon: "education",
-        },
-        {
-          name: "Casier Judiciaire",
-          description: "Extrait du casier judiciaire (Bulletin n°3)",
-          authority: "Ministère de la Justice",
-          requiredDocuments: ["Carte d'identité nationale", "Justificatif de domicile"],
-          price: 20000,
-          processingTimeDays: 7,
-          category: "justice",
-          icon: "legal",
-        },
-        {
-          name: "Registre de Commerce",
-          description: "Inscription au registre de commerce et du crédit mobilier",
-          authority: "Tribunal de Commerce",
-          requiredDocuments: ["Statuts de l'entreprise", "Carte d'identité du gérant", "Preuve d'adresse du siège"],
-          price: 150000,
-          processingTimeDays: 14,
-          category: "commerce",
-          icon: "business",
-        },
-        {
-          name: "Certificat de Résidence",
-          description: "Attestation officielle de résidence",
-          authority: "Commune",
-          requiredDocuments: ["Carte d'identité nationale", "Facture de service (eau/électricité)"],
-          price: 10000,
-          processingTimeDays: 3,
-          category: "etat-civil",
-          icon: "default",
-        },
-      ];
-
-      for (const service of initialServices) {
-        await storage.createService(service);
-      }
-
-      res.json({ message: "Services seeded successfully", count: initialServices.length });
-    } catch (error) {
-      console.error("Error seeding data:", error);
-      res.status(500).json({ error: "Failed to seed data" });
-    }
-  });
-
-  // ============ AUTHENTICATION API ============
-
-  // Login
-  app.post("/api/auth/login", async (req, res) => {
-    try {
-      const { username, password } = req.body;
-
-      if (!username || !password) {
-        return res.status(400).json({ error: "Nom d'utilisateur et mot de passe requis" });
-      }
-
-      const user = await storage.getUserByUsername(username);
-      if (!user) {
-        return res.status(401).json({ error: "Identifiants invalides" });
-      }
-
-      const validPassword = await bcrypt.compare(password, user.password);
-      if (!validPassword) {
+      const { email, password } = req.body;
+      const user = await storage.getUserByEmail(email);
+      if (!user || !(await bcrypt.compare(password, user.password))) {
         return res.status(401).json({ error: "Identifiants invalides" });
       }
 
       req.session.userId = user.id;
       req.session.role = user.role;
 
-      await storage.createAuditLog({
-        actorId: user.id,
-        action: "LOGIN",
-        resource: "user",
-        resourceId: user.id,
-        details: `User ${user.username} logged in`,
-        hash: generateAuditHash({ userId: user.id, action: "login" }),
-      });
-
-      res.json({
-        id: user.id,
-        username: user.username,
-        role: user.role,
-        fullName: user.fullName,
-      });
-    } catch (error) {
-      console.error("Error during login:", error);
+      res.json({ id: user.id, email: user.email, role: user.role, prenom: user.prenom, nom: user.nom });
+    } catch (e) {
       res.status(500).json({ error: "Erreur de connexion" });
     }
   });
 
-  // Logout
   app.post("/api/auth/logout", (req, res) => {
-    req.session.destroy((err) => {
-      if (err) {
-        return res.status(500).json({ error: "Erreur de déconnexion" });
-      }
-      res.json({ message: "Déconnecté avec succès" });
+    req.session.destroy(() => res.json({ success: true }));
+  });
+
+  app.get("/api/auth/me", async (req: Request, res: Response) => {
+    if (!req.session.userId) return res.status(401).json({ error: "Non connecté" });
+    const user = await storage.getUser(req.session.userId);
+    if (!user) return res.status(404).json({ error: "Utilisateur introuvable" });
+    res.json({ id: user.id, email: user.email, role: user.role, prenom: user.prenom, nom: user.nom });
+  });
+
+  // ============ PROCEDURES ============
+
+  app.get("/api/procedures", async (req: Request, res: Response) => {
+    const procs = await storage.getAllProcedures();
+    res.json(procs);
+  });
+
+  app.get("/api/procedures/:slug", async (req: Request, res: Response) => {
+    const proc = await storage.getProcedureBySlug(req.params.slug);
+    if (!proc) return res.status(404).json({ error: "Procédure introuvable" });
+
+    const fields = await storage.getProcedureFields(proc.id);
+    const docs = await storage.getProcedureRequiredDocs(proc.id);
+
+    res.json({ ...proc, fields, requiredDocuments: docs });
+  });
+
+  // ============ APPLICATIONS (USER) ============
+
+  app.post("/api/applications", requireAuth, async (req: Request, res: Response) => {
+    const { procedureId } = req.body;
+    const procedure = await storage.getProcedure(procedureId);
+    if (!procedure) {
+      return res.status(404).json({ error: "Procedure introuvable" });
+    }
+    if (procedure.status !== "available") {
+      return res.status(409).json({ error: "Cette demarche est annoncee mais pas encore ouverte en ligne." });
+    }
+
+    const app_doc = await storage.createApplication(req.session.userId!, procedureId);
+
+    await storage.createActivityLog({
+      actorId: req.session.userId!,
+      action: "creation",
+      entityType: "application",
+      entityId: app_doc.id,
+      newValue: "draft",
+    });
+
+    await storage.createNotification({
+      userId: req.session.userId!,
+      type: "application_created",
+      title: "Dossier créé",
+      message: `Votre dossier ${app_doc.reference} a été créé et enregistré comme brouillon.`,
+      metadata: { applicationId: app_doc.id, procedureId: procedure.id },
+    });
+
+    res.status(201).json(app_doc);
+  });
+
+  app.get("/api/applications/me", requireAuth, async (req: Request, res: Response) => {
+    const apps = await storage.getApplicationsByUser(req.session.userId!);
+    // Enrich with procedure info
+    const enriched = await Promise.all(apps.map(async (a) => {
+      const proc = await storage.getProcedure(a.procedureId);
+      return { ...a, procedure: proc };
+    }));
+    res.json(enriched);
+  });
+
+  app.get("/api/applications/:id", requireAuth, async (req: Request, res: Response) => {
+    const dossier = await storage.getApplication(req.params.id);
+    if (!dossier) return res.status(404).json({ error: "Dossier introuvable" });
+
+    // Check ownership or agent access
+    if (dossier.userId !== req.session.userId && !["agent", "admin", "super_admin"].includes(req.session.role || "")) {
+      return res.status(403).json({ error: "Accès refusé" });
+    }
+
+    const procedure = await storage.getProcedure(dossier.procedureId);
+    const procedureFields = procedure ? await storage.getProcedureFields(procedure.id) : [];
+    const procedureRequiredDocs = procedure ? await storage.getProcedureRequiredDocs(procedure.id) : [];
+    const fieldValues = await storage.getApplicationFieldValues(dossier.id);
+    const documents = await storage.getApplicationDocuments(dossier.id);
+    const activityLogs = await storage.getActivityLogs(dossier.id);
+    const dossierUser =
+      dossier.userId !== req.session.userId && ["agent", "admin", "super_admin"].includes(req.session.role || "")
+        ? await storage.getUser(dossier.userId)
+        : undefined;
+
+    res.json({
+      ...dossier,
+      procedure: procedure
+        ? {
+            ...procedure,
+            fields: procedureFields,
+            requiredDocuments: procedureRequiredDocs,
+          }
+        : undefined,
+      fieldValues,
+      documents,
+      activityLogs,
+      user: dossierUser ? sanitizeUser(dossierUser) : undefined,
     });
   });
 
-  // Get current user
-  app.get("/api/auth/me", async (req, res) => {
-    if (!req.session.userId) {
-      return res.status(401).json({ error: "Non connecté" });
+  app.patch("/api/applications/:id", requireAuth, async (req: Request, res: Response) => {
+    const { status, fieldValues } = req.body;
+    const dossier = await storage.getApplication(req.params.id);
+    if (!dossier) {
+      return res.status(404).json({ error: "Dossier introuvable" });
     }
 
-    try {
-      const user = await storage.getUser(req.session.userId);
-      if (!user) {
-        req.session.destroy(() => {});
-        return res.status(401).json({ error: "Utilisateur non trouvé" });
-      }
+    const isAgent = ["agent", "admin", "super_admin"].includes(req.session.role || "");
+    if (dossier.userId !== req.session.userId && !isAgent) {
+      return res.status(403).json({ error: "Accès refusé" });
+    }
 
-      res.json({
-        id: user.id,
-        username: user.username,
-        role: user.role,
-        fullName: user.fullName,
+    // If field values provided, save them
+    if (fieldValues && Array.isArray(fieldValues)) {
+      for (const fv of fieldValues) {
+        await storage.setApplicationFieldValue(req.params.id, fv.fieldId, fv.value);
+      }
+    }
+
+    if (status) {
+      await storage.updateApplication(req.params.id, {
+        status,
+        submittedAt: status === "submitted" ? new Date() : undefined
       });
-    } catch (error) {
-      console.error("Error fetching user:", error);
-      res.status(500).json({ error: "Erreur serveur" });
+
+      await storage.createActivityLog({
+        actorId: req.session.userId!,
+        action: status === "submitted" ? "submission" : "status_update",
+        entityType: "application",
+        entityId: req.params.id,
+        oldValue: dossier.status,
+        newValue: status,
+      });
+
+      await storage.createNotification({
+        userId: dossier.userId,
+        type: "application_update",
+        title: status === "submitted" ? "Dossier soumis" : "Statut mis à jour",
+        message:
+          status === "submitted"
+            ? `Votre dossier ${dossier.reference} a bien été soumis pour traitement.`
+            : `Le statut de votre dossier ${dossier.reference} est passé à ${status}.`,
+        metadata: { applicationId: dossier.id, status },
+      });
+    }
+
+    res.json({ success: true });
+  });
+
+  // ============ DOCUMENTS ============
+
+  app.post("/api/applications/:id/documents", requireAuth, async (req: Request, res: Response) => {
+    const { requiredDocId, fileUrl, originalName, mimeType, size } = req.body;
+    const dossier = await storage.getApplication(req.params.id);
+    if (!dossier) {
+      return res.status(404).json({ error: "Dossier introuvable" });
+    }
+    if (dossier.userId !== req.session.userId) {
+      return res.status(403).json({ error: "Accès refusé" });
+    }
+
+    const doc = await storage.addApplicationDocument({
+      applicationId: req.params.id,
+      requiredDocId,
+      fileUrl,
+      originalName,
+      mimeType,
+      size,
+      status: "submitted",
+    });
+
+    await storage.createActivityLog({
+      actorId: req.session.userId!,
+      action: "document_upload",
+      entityType: "application",
+      entityId: req.params.id,
+      newValue: originalName,
+    });
+
+    res.status(201).json(doc);
+  });
+
+  // ============ AGENT BACKOFFICE ============
+
+  app.get("/api/admin/applications", requireAgent, async (req: Request, res: Response) => {
+    try {
+      const apps = await storage.getAllApplications();
+      const enriched = await Promise.all(apps.map(async (a) => {
+        const proc = await storage.getProcedure(a.procedureId);
+        const user = await storage.getUser(a.userId);
+        const documents = await storage.getApplicationDocuments(a.id);
+
+        return {
+          ...a,
+          procedure: proc,
+          user: { prenom: user?.prenom, nom: user?.nom, email: user?.email },
+          documents
+        };
+      }));
+      res.json(enriched);
+    } catch (e) {
+      res.status(500).json({ error: "Erreur lors de la récupération des dossiers" });
     }
   });
 
-  // Create admin user (protected - only existing admins can create new users)
-  app.post("/api/auth/register", requireAdmin, async (req, res) => {
+  app.patch("/api/admin/applications/:id/status", requireAgent, async (req: Request, res: Response) => {
     try {
-      const { username, password, fullName, role } = req.body;
+      const { status } = req.body;
+      const dossier = await storage.getApplication(req.params.id);
+      if (!dossier) return res.status(404).json({ error: "Dossier introuvable" });
 
-      if (!username || !password) {
-        return res.status(400).json({ error: "Nom d'utilisateur et mot de passe requis" });
+      await storage.updateApplication(req.params.id, { status });
+
+      await storage.createActivityLog({
+        actorId: req.session.userId!,
+        action: "admin_status_update",
+        entityType: "application",
+        entityId: req.params.id,
+        oldValue: dossier.status,
+        newValue: status,
+      });
+
+      await storage.createNotification({
+        userId: dossier.userId,
+        type: "application_update",
+        title: "Dossier mis à jour",
+        message: `Votre dossier ${dossier.reference} est maintenant au statut ${status}.`,
+        metadata: { applicationId: dossier.id, status },
+      });
+
+      res.json({ success: true });
+    } catch (e) {
+      res.status(500).json({ error: "Erreur lors de la mise à jour du statut" });
+    }
+  });
+
+  app.patch("/api/admin/documents/:id/validate", requireAgent, async (req: Request, res: Response) => {
+    try {
+      const { status, feedback } = req.body;
+      await storage.updateApplicationDocumentStatus(req.params.id, status, feedback);
+
+      const [document] = await db
+        .select()
+        .from(applicationDocuments)
+        .where(eq(applicationDocuments.id, req.params.id));
+
+      if (document) {
+        const [application] = await db
+          .select()
+          .from(applications)
+          .where(eq(applications.id, document.applicationId));
+
+        if (application) {
+          await storage.createNotification({
+            userId: application.userId,
+            type: "document_validation",
+            title: status === "approved" ? "Document approuvé" : "Document à corriger",
+            message:
+              status === "approved"
+                ? "Un document de votre dossier a été approuvé."
+                : feedback || "Un document de votre dossier nécessite une correction.",
+            metadata: { applicationId: application.id, documentId: document.id, status },
+          });
+        }
       }
 
-      const existingUser = await storage.getUserByUsername(username);
-      if (existingUser) {
-        return res.status(400).json({ error: "Ce nom d'utilisateur existe déjà" });
-      }
+      await storage.createActivityLog({
+        actorId: req.session.userId!,
+        action: "document_validation",
+        entityType: "document",
+        entityId: req.params.id,
+        newValue: status,
+      });
+
+      res.json({ success: true });
+    } catch (e) {
+      res.status(500).json({ error: "Erreur lors de la validation du document" });
+    }
+  });
+
+  app.get("/api/admin/users", requireAdmin, async (_req: Request, res: Response) => {
+    const users = await storage.getUsers();
+    res.json(users.map(sanitizeUser));
+  });
+
+  app.post("/api/admin/users", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const { prenom, nom, email, phone, password, institution, role } = req.body;
+      const existing = await storage.getUserByEmail(email);
+      if (existing) return res.status(400).json({ error: "Email déjà utilisé" });
 
       const hashedPassword = await bcrypt.hash(password, 10);
       const user = await storage.createUser({
-        username,
+        prenom,
+        nom,
+        email,
+        phone,
         password: hashedPassword,
-        fullName: fullName || null,
-        role: role || "staff",
+        institution: institution || null,
+        role: role || "agent",
+        status: "active",
       });
 
-      await storage.createAuditLog({
+      await storage.createActivityLog({
         actorId: req.session.userId!,
-        action: "CREATE_USER",
-        resource: "user",
-        resourceId: user.id,
-        details: `Created user ${user.username} with role ${user.role}`,
-        hash: generateAuditHash({ userId: user.id, createdBy: req.session.userId }),
+        action: "user_create",
+        entityType: "user",
+        entityId: user.id,
+        newValue: user.role,
       });
 
-      res.status(201).json({
-        id: user.id,
-        username: user.username,
-        role: user.role,
-        fullName: user.fullName,
-      });
-    } catch (error) {
-      console.error("Error creating user:", error);
+      res.status(201).json(sanitizeUser(user));
+    } catch (_error) {
       res.status(500).json({ error: "Erreur lors de la création de l'utilisateur" });
     }
   });
 
-  // ============ ADMIN API ============
-
-  // Get all document requests (admin)
-  app.get("/api/admin/requests", requireAdmin, async (req, res) => {
+  app.patch("/api/admin/users/:id", requireAdmin, async (req: Request, res: Response) => {
     try {
-      const requests = await storage.getAllDocumentRequests();
-      
-      // Enrich with citizen and service info
-      const enrichedRequests = await Promise.all(
-        requests.map(async (request) => {
-          const citizen = await storage.getCitizen(request.citizenId);
-          const service = await storage.getService(request.serviceId);
-          return {
-            ...request,
-            citizen: citizen ? {
-              nom: citizen.nom,
-              postNom: citizen.postNom,
-              prenom: citizen.prenom,
-              nationalId: citizen.nationalId,
-              phoneNumber: citizen.phoneNumber,
-            } : null,
-            service: service ? {
-              name: service.name,
-              authority: service.authority,
-            } : null,
-          };
+      const { role, status, institution } = req.body;
+      const [updatedUser] = await db
+        .update(users)
+        .set({
+          role,
+          status,
+          institution,
+          updatedAt: new Date(),
         })
-      );
+        .where(eq(users.id, req.params.id))
+        .returning();
 
-      res.json(enrichedRequests);
-    } catch (error) {
-      console.error("Error fetching admin requests:", error);
-      res.status(500).json({ error: "Erreur lors de la récupération des demandes" });
-    }
-  });
+      if (!updatedUser) return res.status(404).json({ error: "Utilisateur introuvable" });
 
-  // Update request status (admin)
-  app.patch("/api/admin/requests/:id/status", requireAdmin, async (req, res) => {
-    try {
-      const { id } = req.params;
-      const { status, notes } = req.body;
-
-      const validStatuses = ["pending", "payment", "processing", "signature", "ready", "delivered", "rejected"];
-      if (!validStatuses.includes(status)) {
-        return res.status(400).json({ error: "Statut invalide" });
-      }
-
-      const request = await storage.getDocumentRequest(id);
-      if (!request) {
-        return res.status(404).json({ error: "Demande non trouvée" });
-      }
-
-      const previousStatus = request.status;
-      const updatedRequest = await storage.updateDocumentRequest(id, {
-        status,
-        notes: notes || request.notes,
-      });
-
-      await storage.createAuditLog({
+      await storage.createActivityLog({
         actorId: req.session.userId!,
-        action: "UPDATE_STATUS",
-        resource: "document_request",
-        resourceId: id,
-        details: `Status changed from ${previousStatus} to ${status}`,
-        hash: generateAuditHash({ requestId: id, previousStatus, newStatus: status }),
+        action: "user_update",
+        entityType: "user",
+        entityId: updatedUser.id,
+        newValue: `${updatedUser.role}:${updatedUser.status}`,
       });
 
-      res.json(updatedRequest);
-    } catch (error) {
-      console.error("Error updating request status:", error);
-      res.status(500).json({ error: "Erreur lors de la mise à jour" });
+      res.json(sanitizeUser(updatedUser));
+    } catch (_error) {
+      res.status(500).json({ error: "Erreur lors de la mise à jour de l'utilisateur" });
     }
   });
 
-  // Seed admin user
-  app.post("/api/admin/seed", async (req, res) => {
+  app.get("/api/admin/procedures", requireAgent, async (_req: Request, res: Response) => {
+    const rows = await db
+      .select()
+      .from(procedures)
+      .orderBy(
+        sql`case when ${procedures.status} = 'available' then 0 else 1 end`,
+        asc(procedures.title),
+      );
+    res.json(rows);
+  });
+
+  app.post("/api/admin/procedures", requireAdmin, async (req: Request, res: Response) => {
     try {
-      const existingAdmin = await storage.getUserByUsername("admin");
-      if (existingAdmin) {
-        return res.json({ message: "Admin user already exists" });
+      const {
+        title,
+        description,
+        category,
+        institution,
+        estimatedDays,
+        cost,
+        status,
+        isActive,
+        icon,
+      } = req.body;
+
+      const slug = slugify(title);
+      const existing = await db.select().from(procedures).where(eq(procedures.slug, slug));
+      if (existing.length > 0) {
+        return res.status(400).json({ error: "Une procédure avec ce titre existe déjà" });
       }
 
-      const hashedPassword = await bcrypt.hash("admin123", 10);
-      await storage.createUser({
-        username: "admin",
-        password: hashedPassword,
-        fullName: "Administrateur Système",
-        role: "admin",
+      const [procedure] = await db.insert(procedures).values({
+        title,
+        slug,
+        description,
+        category,
+        institution,
+        estimatedDays,
+        cost,
+        status: status || "coming_soon",
+        isActive: isActive ?? true,
+        icon: icon || "FileText",
+      }).returning();
+
+      await storage.createActivityLog({
+        actorId: req.session.userId!,
+        action: "procedure_create",
+        entityType: "procedure",
+        entityId: procedure.id,
+        newValue: procedure.title,
       });
 
-      res.json({ message: "Admin user created", username: "admin", password: "admin123" });
-    } catch (error) {
-      console.error("Error seeding admin:", error);
-      res.status(500).json({ error: "Failed to seed admin user" });
+      res.status(201).json(procedure);
+    } catch (_error) {
+      res.status(500).json({ error: "Erreur lors de la création de la procédure" });
     }
+  });
+
+  app.patch("/api/admin/procedures/:id", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const {
+        title,
+        description,
+        category,
+        institution,
+        estimatedDays,
+        cost,
+        status,
+        isActive,
+        icon,
+      } = req.body;
+
+      const [procedure] = await db
+        .update(procedures)
+        .set({
+          title,
+          description,
+          category,
+          institution,
+          estimatedDays,
+          cost,
+          status,
+          isActive,
+          icon,
+          updatedAt: new Date(),
+        })
+        .where(eq(procedures.id, req.params.id))
+        .returning();
+
+      if (!procedure) return res.status(404).json({ error: "Procédure introuvable" });
+
+      await storage.createActivityLog({
+        actorId: req.session.userId!,
+        action: "procedure_update",
+        entityType: "procedure",
+        entityId: procedure.id,
+        newValue: procedure.title,
+      });
+
+      res.json(procedure);
+    } catch (_error) {
+      res.status(500).json({ error: "Erreur lors de la mise à jour de la procédure" });
+    }
+  });
+
+  app.post("/api/admin/procedures/:id/fields", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const { label, type, required, options } = req.body;
+      const existingFields = await storage.getProcedureFields(req.params.id);
+      const [field] = await db.insert(procedureFields).values({
+        procedureId: req.params.id,
+        label,
+        type,
+        required: required ?? true,
+        options: options ?? null,
+        order: existingFields.length + 1,
+      }).returning();
+      res.status(201).json(field);
+    } catch (_error) {
+      res.status(500).json({ error: "Erreur lors de l'ajout du champ" });
+    }
+  });
+
+  app.delete("/api/admin/procedure-fields/:fieldId", requireAdmin, async (req: Request, res: Response) => {
+    await db.delete(procedureFields).where(eq(procedureFields.id, req.params.fieldId));
+    res.json({ success: true });
+  });
+
+  app.post("/api/admin/procedures/:id/documents", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const { name, description, acceptedFormats, maxSizeMb, required } = req.body;
+      const existingDocs = await storage.getProcedureRequiredDocs(req.params.id);
+      const [doc] = await db.insert(procedureRequiredDocuments).values({
+        procedureId: req.params.id,
+        name,
+        description,
+        acceptedFormats,
+        maxSizeMb: maxSizeMb ?? 5,
+        required: required ?? true,
+        order: existingDocs.length + 1,
+      }).returning();
+      res.status(201).json(doc);
+    } catch (_error) {
+      res.status(500).json({ error: "Erreur lors de l'ajout du document" });
+    }
+  });
+
+  app.delete("/api/admin/procedure-documents/:docId", requireAdmin, async (req: Request, res: Response) => {
+    await db.delete(procedureRequiredDocuments).where(eq(procedureRequiredDocuments.id, req.params.docId));
+    res.json({ success: true });
+  });
+
+  app.get("/api/admin/logs", requireAgent, async (req: Request, res: Response) => {
+    const logs = await storage.getActivityLogs();
+    res.json(logs);
+  });
+
+  // ============ NOTIFICATIONS ============
+
+  app.get("/api/notifications", requireAuth, async (req: Request, res: Response) => {
+    const notes = await storage.getNotificationsByUser(req.session.userId!);
+    res.json(notes);
+  });
+
+  app.patch("/api/notifications/:id/read", requireAuth, async (req: Request, res: Response) => {
+    await storage.markNotificationAsRead(req.params.id);
+    res.json({ success: true });
+  });
+
+  // ============ SEEDING ============
+
+  app.post("/api/seed", async (req: Request, res: Response) => {
+    const result = await seedCatalog();
+    res.json({ success: true, ...result });
   });
 
   return httpServer;

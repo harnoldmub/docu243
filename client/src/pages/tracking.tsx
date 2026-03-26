@@ -20,10 +20,23 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import type { DocumentRequest, Service } from "@shared/schema";
 
-interface TrackingResult extends DocumentRequest {
-  service?: Service;
+type LegacyService = {
+  name: string;
+  authority: string;
+  price?: number;
+  processingTimeDays?: number;
+};
+
+interface TrackingResult {
+  id: string;
+  trackingCode: string;
+  status: string;
+  rejectionReason?: string | null;
+  createdAt?: string | Date | null;
+  paymentStatus: string;
+  paymentReference?: string | null;
+  service?: LegacyService;
 }
 
 export default function Tracking() {
@@ -82,7 +95,7 @@ export default function Tracking() {
               <div className="relative flex-1">
                 <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-white/50" />
                 <Input
-                  placeholder="Ex: DOC-2024-XXXXX"
+                  placeholder="Ex: DOCU_A1B2C3"
                   value={trackingCode}
                   onChange={(e) => setTrackingCode(e.target.value.toUpperCase())}
                   className="h-14 border-white/20 bg-white/10 pl-12 text-lg text-white placeholder:text-white/50"
@@ -115,7 +128,7 @@ export default function Tracking() {
               <h2 className="text-xl font-semibold">Suivez Votre Dossier</h2>
               <p className="mt-2 max-w-md text-muted-foreground">
                 Votre code de suivi vous a été fourni lors de la soumission de votre demande. 
-                Il commence généralement par "DOC-".
+                Il commence généralement par "DOCU_".
               </p>
             </div>
           )}

@@ -1,0 +1,94 @@
+import React, { createContext, useContext, ReactNode } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
+
+interface User {
+    id: string;
+    email: string;
+    role: "citizen" | "agent" | "admin" | "super_admin";
+    prenom: string;
+    nom: string;
+}
+
+interface AuthContextType {
+    user: User | null;
+    isLoading: boolean;
+    login: (data: any) => Promise<void>;
+    register: (data: any) => Promise<void>;
+    logout: () => Promise<void>;
+}
+
+const AuthContext = createContext<AuthContextType | null>(null);
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+    const { toast } = useToast();
+    const queryClient = useQueryClient();
+
+    const { data: user, isLoading } = useQuery<User | null>({
+        queryKey: ["/api/auth/me"],
+        retry: false,
+    });
+
+    const loginMutation = useMutation({
+        mutationFn: async (data: any) => {
+            const res = await apiRequest("POST", "/api/auth/login", data);
+            return res.json();
+        },
+        onSuccess: (user: User) => {
+            queryClient.setQueryData(["/api/auth/me"], user);
+            toast({ title: "Bienvenue !", description: `Content de vous revoir, ${user.prenom}.` });
+        },
+        onError: (error: Error) => {
+            toast({
+                title: "Échec de connexion",
+                description: error.message,
+                variant: "destructive"
+            });
+        },
+    });
+
+    const registerMutation = useMutation({
+        mutationFn: async (data: any) => {
+            const res = await apiRequest("POST", "/api/auth/register", data);
+            return res.json();
+        },
+        onSuccess: (user: User) => {
+            queryClient.setQueryData(["/api/auth/me"], user);
+            toast({ title: "Compte créé", description: "Votre compte a été créé avec succès." });
+        },
+        onError: (error: Error) => {
+            toast({
+                title: "Échec de l'inscription",
+                description: error.message,
+                variant: "destructive"
+            });
+        },
+    });
+
+    const logoutMutation = useMutation({
+        mutationFn: () => apiRequest("POST", "/api/auth/logout"),
+        onSuccess: () => {
+            queryClient.setQueryData(["/api/auth/me"], null);
+            toast({ title: "Déconnecté", description: "À bientôt !" });
+        },
+    });
+
+    return (
+        <AuthContext.Provider value={{
+            user: user ?? null,
+            isLoading,
+            login: async (data) => { await loginMutation.mutateAsync(data); },
+            register: async (data) => { await registerMutation.mutateAsync(data); },
+            logout: async () => { await logoutMutation.mutateAsync(); },
+        }}>
+            {children}
+        </AuthContext.Provider>
+    );
+}
+
+export function useAuth() {
+    const context = useContext(AuthContext);
+    if (!context) throw new Error("useAuth must be used within an AuthProvider");
+    return context;
+}

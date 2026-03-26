@@ -2,12 +2,12 @@ import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { 
-  Search, 
-  FileText, 
-  CreditCard, 
-  Shield, 
-  Clock, 
+import {
+  Search,
+  FileText,
+  CreditCard,
+  Shield,
+  Clock,
   CheckCircle,
   ChevronRight,
   Users,
@@ -17,273 +17,307 @@ import {
   ArrowRight,
   Car,
   Home as HomeIcon,
-  Briefcase
+  Briefcase,
+  Smartphone,
+  ShieldCheck,
+  Globe,
+  Zap
 } from "lucide-react";
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import type { Service } from "@shared/schema";
-
-const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
-  FileText,
-  Users,
-  Heart,
-  GraduationCap,
-  Car,
-  Home: HomeIcon,
-  Briefcase,
-  Building2,
-};
+import type { Procedure } from "@shared/schema";
+import { ProcedureCard } from "@/components/procedure-card";
+import { cn } from "@/lib/utils";
 
 const stats = [
-  { value: "2M+", label: "Citoyens inscrits" },
-  { value: "500K+", label: "Documents délivrés" },
-  { value: "26", label: "Provinces couvertes" },
-  { value: "99.9%", label: "Disponibilité" },
+  { value: "5M+", label: "Citoyens Enregistrés" },
+  { value: "1.2M", label: "Dossiers Traités" },
+  { value: "26", label: "Provinces" },
+  { value: "100%", label: "Officiel" },
 ];
 
 export default function Home() {
   const [trackingCode, setTrackingCode] = useState("");
   const [, setLocation] = useLocation();
 
-  const { data: services = [] } = useQuery<Service[]>({
-    queryKey: ["/api/services"],
+  const { data: procedures = [] } = useQuery<Procedure[]>({
+    queryKey: ["/api/procedures"],
   });
 
-  const popularServices = services.slice(0, 4);
+  const popularProcedures = [...procedures]
+    .sort((a, b) => {
+      if (a.status === b.status) return a.estimatedDays - b.estimatedDays;
+      return a.status === "available" ? -1 : 1;
+    })
+    .slice(0, 3);
 
   const handleTrackingSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (trackingCode.trim()) {
-      setLocation(`/suivi?code=${encodeURIComponent(trackingCode.trim())}`);
+      // For now redirect to catalogue or dashboard since tracking code is simplified
+      setLocation(`/catalogue?q=${encodeURIComponent(trackingCode.trim())}`);
     }
   };
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-white">
       {/* Hero Section */}
-      <section className="relative overflow-hidden bg-primary px-4 py-16 text-primary-foreground md:py-24">
-        <div className="absolute inset-0 bg-gradient-to-br from-congo-darkBlue/80 to-primary/90" />
-        <div className="relative mx-auto max-w-7xl">
-          <div className="grid gap-8 lg:grid-cols-2 lg:gap-12">
-            <div className="space-y-6">
-              <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-sm backdrop-blur">
-                <Shield className="h-4 w-4" />
-                <span>Plateforme Officielle de la RDC</span>
+      <section className="relative overflow-hidden bg-slate-900 pt-20 pb-32 md:pt-32 md:pb-48">
+        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10" />
+        <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/2 w-[800px] h-[800px] bg-primary/20 rounded-full blur-[120px]" />
+
+        <div className="relative mx-auto max-w-7xl px-4 text-center lg:text-left">
+          <div className="grid lg:grid-cols-12 gap-16 items-center">
+            <div className="lg:col-span-7 space-y-8">
+              <div className="inline-flex items-center gap-2 rounded-full bg-primary/20 border border-primary/30 px-4 py-1.5 text-xs font-bold text-primary tracking-widest uppercase backdrop-blur animate-fade-in">
+                <ShieldCheck className="h-4 w-4" />
+                <span>Plateforme Nationale Officielle</span>
               </div>
-              <h1 className="text-4xl font-bold tracking-tight md:text-5xl lg:text-6xl">
-                Vos documents administratifs, simplifiés
+
+              <h1 className="text-5xl md:text-7xl font-black tracking-tight text-white leading-[1.1]">
+                L'Administration <span className="text-primary">Réinventée</span> pour vous.
               </h1>
-              <p className="text-lg text-white/80 md:text-xl">
-                DOCU243 est la plateforme nationale qui modernise l'accès aux services 
-                administratifs en République Démocratique du Congo. Demandez, payez et 
-                suivez vos documents en ligne.
+
+              <p className="text-xl text-slate-400 max-w-2xl mx-auto lg:mx-0 leading-relaxed">
+                DOCU243 est votre guichet unique pour toutes vos démarches administratives en RDC.
+                Sûr, rapide et accessible partout.
               </p>
-              <div className="flex flex-wrap gap-4">
-                <Link href="/services">
-                  <Button size="lg" variant="secondary" className="gap-2" data-testid="button-hero-services">
-                    Voir les Services
-                    <ArrowRight className="h-4 w-4" />
+
+              <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4">
+                <Link href="/catalogue">
+                  <Button size="lg" className="h-16 px-10 rounded-2xl text-lg font-bold gap-3 shadow-xl shadow-primary/20 w-full sm:w-auto">
+                    Explorer le Catalogue
+                    <ArrowRight className="h-5 w-5" />
                   </Button>
                 </Link>
-                <Link href="/suivi">
-                  <Button size="lg" variant="outline" className="gap-2 border-white/30 bg-white/10 backdrop-blur" data-testid="button-hero-track">
-                    Suivre mon Dossier
+                <Link href="/auth">
+                  <Button size="lg" variant="outline" className="h-16 px-10 rounded-2xl text-lg font-bold border-white/10 text-white hover:bg-white/5 w-full sm:w-auto">
+                    Créer mon Espace
                   </Button>
                 </Link>
+              </div>
+
+              <div className="pt-8 flex items-center justify-center lg:justify-start gap-8 opacity-50 grayscale transition-all hover:grayscale-0">
+                <img src="/flag.png" alt="RDC" className="h-6 w-auto object-contain" />
+                <span className="text-white font-bold text-sm tracking-widest">MINISTÈRE DU NUMÉRIQUE</span>
               </div>
             </div>
 
-            {/* Quick Tracking Form */}
-            <div className="flex items-center justify-center">
-              <Card className="w-full max-w-md border-0 bg-white/10 backdrop-blur">
-                <CardHeader className="pb-4">
-                  <h2 className="text-xl font-semibold text-white">Suivi Rapide</h2>
-                  <p className="text-sm text-white/70">
-                    Entrez votre code de suivi pour connaître l'état de votre dossier
-                  </p>
-                </CardHeader>
-                <CardContent>
-                  <form onSubmit={handleTrackingSubmit} className="space-y-4">
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-white/50" />
-                      <Input
-                        placeholder="Ex: DOC-2024-XXXXX"
-                        value={trackingCode}
-                        onChange={(e) => setTrackingCode(e.target.value)}
-                        className="h-12 border-white/20 bg-white/10 pl-10 text-white placeholder:text-white/50"
-                        data-testid="input-tracking-code"
-                      />
+            <div className="lg:col-span-5 hidden lg:block">
+              <div className="relative">
+                <div className="absolute inset-0 bg-primary/30 rounded-[40px] rotate-6 blur-2xl" />
+                <Card className="relative border-none bg-white/5 backdrop-blur-xl p-8 rounded-[40px] border border-white/10 shadow-2xl">
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/80">Aperçu du service</div>
+                        <div className="mt-1 text-lg font-bold text-white">Suivi d'un dossier</div>
+                      </div>
+                      <div className="flex gap-1.5">
+                        <div className="h-2 w-2 rounded-full bg-red-400" />
+                        <div className="h-2 w-2 rounded-full bg-amber-400" />
+                        <div className="h-2 w-2 rounded-full bg-emerald-400" />
+                      </div>
                     </div>
-                    <Button type="submit" className="w-full" size="lg" data-testid="button-track-submit">
-                      Rechercher
-                    </Button>
-                  </form>
-                </CardContent>
-              </Card>
+                    <div className="rounded-3xl border border-primary/20 bg-primary/10 p-5 space-y-3">
+                      <div className="flex items-center justify-between gap-4">
+                        <div>
+                          <div className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/80">Référence</div>
+                          <div className="mt-1 text-base font-bold text-white">DOCU_8F42AC</div>
+                        </div>
+                        <div className="rounded-full bg-emerald-500/20 px-3 py-1 text-[11px] font-bold text-emerald-300">
+                          En cours
+                        </div>
+                      </div>
+                      <div className="text-sm text-slate-300 leading-relaxed">
+                        Votre demande avance étape par étape, avec notification dès qu’une action est attendue.
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 pt-2">
+                      <div className="rounded-2xl border border-primary/15 bg-white/5 p-4">
+                        <div className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Étape</div>
+                        <div className="mt-2 text-sm font-bold text-white">Documents reçus</div>
+                        <div className="mt-1 text-xs text-slate-400">Pièces vérifiées en ligne</div>
+                      </div>
+                      <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                        <div className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Accès</div>
+                        <div className="mt-2 text-sm font-bold text-white">Mobile et web</div>
+                        <div className="mt-1 text-xs text-slate-400">Sans installation</div>
+                      </div>
+                    </div>
+                    <Link href="/dashboard">
+                      <Button className="w-full h-12 rounded-xl bg-primary hover:bg-primary/90">
+                        Consulter mes dossiers
+                      </Button>
+                    </Link>
+                  </div>
+                </Card>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Stats Section */}
-      <section className="border-b bg-card px-4 py-8">
-        <div className="mx-auto max-w-7xl">
-          <div className="grid grid-cols-2 gap-6 md:grid-cols-4">
+      {/* Trust Banner */}
+      <div className="max-w-7xl mx-auto px-4 -mt-16 relative z-10">
+        <Card className="border-none shadow-2xl rounded-[32px] overflow-hidden bg-white">
+          <div className="grid md:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-slate-100">
             {stats.map((stat) => (
-              <div key={stat.label} className="text-center">
-                <div className="text-3xl font-bold text-primary md:text-4xl" data-testid={`stat-${stat.label}`}>
-                  {stat.value}
-                </div>
-                <div className="mt-1 text-sm text-muted-foreground">{stat.label}</div>
+              <div key={stat.label} className="p-8 text-center space-y-1">
+                <div className="text-3xl font-black text-slate-900">{stat.value}</div>
+                <div className="text-[10px] uppercase tracking-[0.2em] font-bold text-slate-400">{stat.label}</div>
               </div>
+            ))}
+          </div>
+        </Card>
+      </div>
+
+      {/* Services Section */}
+      <section className="py-24 md:py-32 px-4">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex flex-col md:flex-row items-end justify-between mb-16 gap-6">
+            <div className="space-y-4 max-w-xl">
+              <h2 className="text-4xl font-black tracking-tight text-slate-900">Services Prioritaires</h2>
+              <p className="text-lg text-slate-500 font-medium">
+                Démarrez vos démarches les plus courantes directement en ligne sans file d'attente.
+              </p>
+            </div>
+            <Link href="/catalogue">
+              <Button variant="ghost" className="text-primary font-black gap-2 hover:bg-primary/5 px-6 h-12 rounded-xl">
+                Tout le catalogue
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {popularProcedures.map((proc) => (
+              <ProcedureCard
+                key={proc.id}
+                id={proc.id}
+                title={proc.title}
+                slug={proc.slug}
+                description={proc.description}
+                category={proc.category}
+                institution={proc.institution}
+                estimatedDays={proc.estimatedDays}
+                cost={proc.cost}
+                status={proc.status as "available" | "coming_soon"}
+                icon={proc.icon || "FileText"}
+              />
             ))}
           </div>
         </div>
       </section>
 
-      {/* Popular Services */}
-      <section className="px-4 py-16">
-        <div className="mx-auto max-w-7xl">
-          <div className="mb-10 text-center">
-            <h2 className="text-3xl font-bold tracking-tight">Services les Plus Demandés</h2>
-            <p className="mt-2 text-muted-foreground">
-              Accédez rapidement aux documents administratifs essentiels
+      {/* Features - Institutional Grid */}
+      <section className="bg-slate-50 py-24 md:py-32 px-4 overflow-hidden relative">
+        <div className="max-w-7xl mx-auto relative z-10">
+          <div className="text-center max-w-2xl mx-auto mb-20 space-y-4">
+            <h2 className="text-4xl font-black text-slate-900">Pourquoi utiliser DOCU243 ?</h2>
+            <p className="text-slate-500 font-medium italic underline underline-offset-8 decoration-primary/30">
+              La plateforme gouvernementale qui simplifie votre vie de citoyen.
             </p>
           </div>
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {popularServices.map((service) => {
-              const Icon = iconMap[service.icon] || FileText;
-              return (
-                <Link key={service.id} href={`/demande/${service.id}`}>
-                  <Card 
-                    className="group cursor-pointer overflow-visible transition-all hover-elevate"
-                    data-testid={`card-popular-${service.id}`}
-                  >
-                    <CardContent className="flex flex-col items-center p-6 text-center">
-                      <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
-                        <Icon className="h-7 w-7" />
-                      </div>
-                      <h3 className="font-semibold">{service.name}</h3>
-                      <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{service.description}</p>
-                      <div className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <Clock className="h-3.5 w-3.5" />
-                        <span>{service.processingTimeDays} jours</span>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </Link>
-              );
-            })}
-          </div>
-          <div className="mt-8 text-center">
-            <Link href="/services">
-              <Button variant="outline" size="lg" className="gap-2" data-testid="button-view-all-services">
-                Voir Tous les Services
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </section>
 
-      {/* How It Works */}
-      <section className="bg-muted/50 px-4 py-16">
-        <div className="mx-auto max-w-7xl">
-          <div className="mb-10 text-center">
-            <h2 className="text-3xl font-bold tracking-tight">Comment Ça Marche</h2>
-            <p className="mt-2 text-muted-foreground">
-              Un processus simple et transparent en 4 étapes
-            </p>
-          </div>
-          <div className="grid gap-8 md:grid-cols-4">
+          <div className="grid md:grid-cols-3 gap-8">
             {[
               {
-                step: 1,
-                icon: FileText,
-                title: "Choisir un Service",
-                description: "Parcourez notre catalogue de services administratifs",
+                icon: ShieldCheck,
+                title: "Sécurité d'État",
+                desc: "Vos informations sont chiffrées et stockées dans les centres de données nationaux sécurisés.",
+                color: "bg-blue-600"
               },
               {
-                step: 2,
-                icon: CreditCard,
-                title: "Payer en Ligne",
-                description: "Payez facilement via Mobile Money (M-Pesa, Airtel, Orange)",
+                icon: Zap,
+                title: "Rapidité Digitale",
+                desc: "Réduisez les délais de traitement jusqu'à 70% grâce à la numérisation complète des flux.",
+                color: "bg-amber-500"
               },
               {
-                step: 3,
-                icon: Clock,
-                title: "Suivre le Dossier",
-                description: "Suivez l'avancement de votre demande en temps réel",
-              },
-              {
-                step: 4,
-                icon: CheckCircle,
-                title: "Recevoir le Document",
-                description: "Retirez ou recevez votre document officiel",
-              },
-            ].map((item) => {
-              const Icon = item.icon;
+                icon: Globe,
+                title: "Partout en RDC",
+                desc: "Accédez aux services depuis votre province ou l'étranger, 24h/24 et 7j/7.",
+                color: "bg-emerald-500"
+              }
+            ].map((feature, i) => {
+              const Icon = feature.icon;
               return (
-                <div key={item.step} className="relative text-center">
-                  <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                    <Icon className="h-8 w-8" />
-                  </div>
-                  <div className="absolute -right-4 top-8 hidden text-4xl font-bold text-muted md:block">
-                    {item.step < 4 ? "→" : ""}
-                  </div>
-                  <h3 className="mb-2 font-semibold">{item.title}</h3>
-                  <p className="text-sm text-muted-foreground">{item.description}</p>
-                </div>
+                <Card key={i} className="border-none shadow-sm hover:shadow-xl transition-all duration-300 rounded-3xl p-4 bg-white">
+                  <CardContent className="pt-8 space-y-6">
+                    <div className={cn("h-16 w-16 rounded-2xl flex items-center justify-center text-white shadow-lg", feature.color)}>
+                      <Icon className="h-8 w-8" />
+                    </div>
+                    <div className="space-y-2">
+                      <h3 className="text-xl font-bold text-slate-900">{feature.title}</h3>
+                      <p className="text-slate-500 text-sm leading-relaxed">{feature.desc}</p>
+                    </div>
+                  </CardContent>
+                </Card>
               );
             })}
           </div>
         </div>
       </section>
 
-      {/* Trust Indicators */}
-      <section className="px-4 py-16">
-        <div className="mx-auto max-w-7xl">
-          <div className="grid gap-8 md:grid-cols-3">
-            <Card className="border-0 bg-primary/5">
-              <CardContent className="flex items-start gap-4 p-6">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                  <Shield className="h-6 w-6" />
+      {/* CTA Lightweight Web Experience */}
+      <section className="py-24 px-4">
+        <div className="max-w-7xl mx-auto bg-primary rounded-[40px] overflow-hidden relative">
+          <div className="absolute top-0 right-0 w-1/2 h-full bg-white/5 skew-x-12 translate-x-1/2" />
+          <div className="grid md:grid-cols-2 items-center p-12 md:p-20 relative z-10 gap-12">
+            <div className="space-y-8">
+              <h2 className="text-4xl md:text-5xl font-black text-white leading-tight">
+                Un site web rapide, simple et accessible sur mobile.
+              </h2>
+              <p className="text-xl text-primary-foreground/70 leading-relaxed">
+                Consultez vos démarches, déposez vos pièces et suivez vos dossiers depuis votre téléphone sans installer d'application.
+                DOCU243 est pensé pour consommer peu de ressources et rester utilisable même sur des connexions modestes.
+              </p>
+              <div className="flex flex-wrap gap-4">
+                <Link href="/auth">
+                  <Button className="h-14 px-8 bg-white text-primary hover:bg-white/90 font-black rounded-xl">
+                    Créer mon compte citoyen
+                  </Button>
+                </Link>
+                <Link href="/catalogue">
+                  <Button variant="outline" className="h-14 px-8 border-white/20 text-white hover:bg-white/10 font-black rounded-xl gap-2">
+                    <Globe className="h-5 w-5" />
+                    Ouvrir le site mobile
+                  </Button>
+                </Link>
+              </div>
+            </div>
+
+            <div className="flex justify-center md:justify-end">
+              <div className="relative w-full max-w-[22rem] rounded-[40px] border border-white/15 bg-slate-900/90 p-6 shadow-2xl">
+                <div className="text-white text-center p-6 space-y-4">
+                  <div className="flex items-center justify-between rounded-2xl bg-white/5 px-4 py-3 text-left">
+                    <div>
+                      <div className="text-[10px] font-black uppercase tracking-[0.2em] text-white/50">Mode léger</div>
+                      <div className="text-sm font-bold text-white">Accès mobile et web</div>
+                    </div>
+                    <div className="h-12 w-12 bg-primary rounded-2xl flex items-center justify-center">
+                      <Globe className="h-6 w-6" />
+                    </div>
+                  </div>
+                  <div className="grid gap-3 pt-4 text-left">
+                    <div className="rounded-2xl bg-white/5 p-4">
+                      <div className="text-[10px] font-black uppercase tracking-[0.2em] text-white/50">Catalogue</div>
+                      <div className="mt-2 text-sm font-bold">Démarches disponibles immédiatement</div>
+                    </div>
+                    <div className="rounded-2xl bg-white/5 p-4">
+                      <div className="text-[10px] font-black uppercase tracking-[0.2em] text-white/50">Suivi</div>
+                      <div className="mt-2 text-sm font-bold">Vos dossiers accessibles sur téléphone</div>
+                    </div>
+                    <div className="rounded-2xl bg-white/5 p-4">
+                      <div className="text-[10px] font-black uppercase tracking-[0.2em] text-white/50">Performance</div>
+                      <div className="mt-2 text-sm font-bold">Une expérience sobre, claire et rapide</div>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-semibold">Sécurisé</h3>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Vos données sont protégées selon les standards internationaux (TLS 1.3, AES-256)
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="border-0 bg-success/5">
-              <CardContent className="flex items-start gap-4 p-6">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-success/10 text-success">
-                  <CheckCircle className="h-6 w-6" />
-                </div>
-                <div>
-                  <h3 className="font-semibold">Officiel</h3>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Plateforme officielle du gouvernement de la RDC
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="border-0 bg-warning/5">
-              <CardContent className="flex items-start gap-4 p-6">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-warning/10 text-warning">
-                  <Building2 className="h-6 w-6" />
-                </div>
-                <div>
-                  <h3 className="font-semibold">Accessible</h3>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Disponible dans les 26 provinces via web, mobile et USSD
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </div>
         </div>
       </section>

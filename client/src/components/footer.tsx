@@ -1,119 +1,102 @@
-import { Phone, Mail, MapPin } from "lucide-react";
+import {
+  Phone,
+  Mail,
+  MapPin,
+  Facebook,
+  Twitter,
+  Linkedin,
+  ArrowUpRight
+} from "lucide-react";
 import { Link } from "wouter";
-import logoImage from "@assets/ChatGPT_Image_Jan_13,_2026,_08_02_49_AM_1768287813548.png";
 
 export function Footer() {
   return (
-    <footer className="bg-congo-darkBlue text-white">
-      <div className="mx-auto max-w-7xl px-4 py-12">
-        <div className="grid gap-8 md:grid-cols-4">
-          <div className="space-y-4">
-            <Link href="/">
-              <img 
-                src={logoImage} 
-                alt="DOCU243 - Plateforme Officielle de la RDC" 
-                className="h-16 w-auto object-contain"
-              />
+    <footer className="bg-slate-900 border-t border-white/5 pt-20 pb-10 overflow-hidden relative">
+      <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-primary via-amber-500 to-emerald-500" />
+
+      <div className="mx-auto max-w-7xl px-4 relative z-10">
+        <div className="grid gap-12 lg:grid-cols-12 mb-16">
+
+          {/* Brand Block */}
+          <div className="lg:col-span-4 space-y-6">
+            <Link href="/" className="inline-flex items-center">
+              <div className="px-1 py-1">
+                <img
+                  src="/logo.png"
+                  alt="DOCU243"
+                  className="h-20 w-auto sm:h-[5.5rem] object-contain drop-shadow-[0_10px_24px_rgba(15,23,42,0.22)]"
+                />
+              </div>
             </Link>
-            <p className="text-sm text-white/70 leading-relaxed">
-              Infrastructure Publique Numérique de la République Démocratique du Congo.
-              Services administratifs modernisés et accessibles à tous.
+            <p className="text-slate-400 text-sm leading-relaxed max-w-sm">
+              La plateforme nationale de modernisation de l’administration.
+              Simplifiez vos démarches, accélérez vos droits, construisez l’avenir du numérique en RDC.
             </p>
+            <div className="flex gap-4">
+              <a href="#" className="h-10 w-10 rounded-full bg-white/5 flex items-center justify-center text-slate-400 hover:bg-primary hover:text-white transition-all"><Facebook className="h-4 w-4" /></a>
+              <a href="#" className="h-10 w-10 rounded-full bg-white/5 flex items-center justify-center text-slate-400 hover:bg-primary hover:text-white transition-all"><Twitter className="h-4 w-4" /></a>
+              <a href="#" className="h-10 w-10 rounded-full bg-white/5 flex items-center justify-center text-slate-400 hover:bg-primary hover:text-white transition-all"><Linkedin className="h-4 w-4" /></a>
+            </div>
           </div>
 
-          <div className="space-y-4">
-            <h4 className="font-semibold">Services</h4>
-            <ul className="space-y-2 text-sm text-white/70">
-              <li>
-                <Link href="/services" className="hover:text-white transition-colors" data-testid="footer-link-documents">
-                  Documents Officiels
-                </Link>
-              </li>
-              <li>
-                <Link href="/services" className="hover:text-white transition-colors" data-testid="footer-link-actes">
-                  Actes de Naissance
-                </Link>
-              </li>
-              <li>
-                <Link href="/services" className="hover:text-white transition-colors" data-testid="footer-link-passeport">
-                  Passeport Biométrique
-                </Link>
-              </li>
-              <li>
-                <Link href="/services" className="hover:text-white transition-colors" data-testid="footer-link-certificats">
-                  Certificats
-                </Link>
-              </li>
+          {/* Links Grid */}
+          <div className="lg:col-span-2 space-y-6">
+            <h4 className="text-white font-black text-sm uppercase tracking-widest">Procédures</h4>
+            <ul className="space-y-3">
+              <li><Link href="/procedure/passeport-biometrique" className="text-slate-400 hover:text-primary text-sm font-bold flex items-center gap-1 group">Passeport <ArrowUpRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-all" /></Link></li>
+              <li><Link href="/catalogue?category=Etat%20Civil" className="text-slate-400 hover:text-primary text-sm font-bold flex items-center gap-1 group">État Civil <ArrowUpRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-all" /></Link></li>
+              <li><Link href="/procedure/registre-de-commerce" className="text-slate-400 hover:text-primary text-sm font-bold flex items-center gap-1 group">RCCM <ArrowUpRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-all" /></Link></li>
+              <li><Link href="/catalogue" className="text-slate-400 hover:text-primary text-sm font-bold flex items-center gap-1 group">Voir tout <ArrowUpRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-all" /></Link></li>
             </ul>
           </div>
 
-          <div className="space-y-4">
-            <h4 className="font-semibold">Aide</h4>
-            <ul className="space-y-2 text-sm text-white/70">
-              <li>
-                <Link href="/suivi" className="hover:text-white transition-colors" data-testid="footer-link-suivi">
-                  Suivi de Dossier
-                </Link>
-              </li>
-              <li>
-                <a href="#" className="hover:text-white transition-colors" data-testid="footer-link-faq">
-                  FAQ
-                </a>
-              </li>
-              <li>
-                <a href="#" className="hover:text-white transition-colors" data-testid="footer-link-guide">
-                  Guide Utilisateur
-                </a>
-              </li>
-              <li>
-                <a href="#" className="hover:text-white transition-colors" data-testid="footer-link-contact">
-                  Contact
-                </a>
-              </li>
-              <li>
-                <Link href="/admin" className="hover:text-white transition-colors" data-testid="footer-link-admin">
-                  Espace Admin
-                </Link>
-              </li>
+          <div className="lg:col-span-2 space-y-6">
+            <h4 className="text-white font-black text-sm uppercase tracking-widest">Support</h4>
+            <ul className="space-y-3">
+              <li><Link href="/dashboard" className="text-slate-400 hover:text-primary text-sm font-bold">Suivi de dossier</Link></li>
+              <li><Link href="/catalogue" className="text-slate-400 hover:text-primary text-sm font-bold">Centre d'aide</Link></li>
+              <li><a href="mailto:contact@docu243.cd" className="text-slate-400 hover:text-primary text-sm font-bold">Nous contacter</a></li>
+              <li><Link href="/auth" className="text-slate-400 hover:text-primary text-sm font-bold transition-all hover:translate-x-1">Espace Agent</Link></li>
             </ul>
           </div>
 
-          <div className="space-y-4">
-            <h4 className="font-semibold">Contact</h4>
-            <ul className="space-y-3 text-sm text-white/70">
-              <li className="flex items-center gap-2">
-                <Phone className="h-4 w-4" />
-                <span>+243 81 000 0243</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <Mail className="h-4 w-4" />
-                <span>support@docu243.cd</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <MapPin className="h-4 w-4 mt-0.5" />
-                <span>
-                  Boulevard du 30 Juin<br />
-                  Kinshasa, RDC
-                </span>
-              </li>
-            </ul>
+          {/* Contact Block */}
+          <div className="lg:col-span-4 space-y-6">
+            <h4 className="text-white font-black text-sm uppercase tracking-widest">Contact Officiel</h4>
+            <div className="bg-white/5 p-6 rounded-[32px] border border-white/5 space-y-4">
+              <div className="flex items-center gap-4">
+                <div className="h-10 w-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary">
+                  <Phone className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="text-[10px] font-black text-slate-500 uppercase tracking-tighter">Assistance 24/7</div>
+                  <div className="text-white font-bold">+243 81 000 0000</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="h-10 w-10 rounded-xl bg-emerald-500/20 flex items-center justify-center text-emerald-500">
+                  <Mail className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="text-[10px] font-black text-slate-500 uppercase tracking-tighter">Email Service</div>
+                  <div className="text-white font-bold">contact@docu243.cd</div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-white/10 pt-8 md:flex-row">
-          <p className="text-sm text-white/50">
-            © 2024 DOCU243 - République Démocratique du Congo. Tous droits réservés.
-          </p>
-          <div className="flex items-center gap-4 text-sm text-white/50">
-            <a href="#" className="hover:text-white transition-colors" data-testid="footer-link-mentions">
-              Mentions légales
-            </a>
-            <a href="#" className="hover:text-white transition-colors" data-testid="footer-link-confidentialite">
-              Confidentialité
-            </a>
-            <a href="#" className="hover:text-white transition-colors" data-testid="footer-link-accessibilite">
-              Accessibilité
-            </a>
+        {/* Bottom Bar */}
+        <div className="pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-6">
+          <div className="flex items-center gap-6 opacity-40 grayscale hover:opacity-100 hover:grayscale-0 transition-all">
+            <img src="/flag.png" alt="RDC" className="h-4 w-auto object-contain shadow-sm" />
+            <span className="text-white font-black text-[10px] tracking-[0.3em]">MINISTÈRE DU NUMÉRIQUE</span>
+          </div>
+
+          <div className="flex flex-wrap justify-center gap-6">
+            <a href="mailto:contact@docu243.cd?subject=Politique%20de%20confidentialite%20DOCU243" className="text-[10px] font-black text-slate-500 uppercase tracking-widest hover:text-white transition-colors">Politique de Confidentialité</a>
+            <a href="mailto:contact@docu243.cd?subject=Mentions%20legales%20DOCU243" className="text-[10px] font-black text-slate-500 uppercase tracking-widest hover:text-white transition-colors">Mentions Légales</a>
+            <span className="text-[10px] font-bold text-slate-700 uppercase tracking-widest">© 2024 DOCU243. TOUS DROITS RÉSERVÉS.</span>
           </div>
         </div>
       </div>

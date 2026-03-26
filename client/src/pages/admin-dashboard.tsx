@@ -1,555 +1,267 @@
-import { useState, useEffect } from "react";
-import { useLocation } from "wouter";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import React, { useState } from "react";
+import { Link } from "wouter";
+import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/use-auth";
+import {
+  ShieldCheck,
+  Search,
+  Clock,
+  CheckCircle,
+  AlertCircle,
+  FileText,
+  ChevronRight,
+  Calendar,
+  User,
+} from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/hooks/use-toast";
-import { 
-  Shield, 
-  LogOut, 
-  FileText, 
-  Users, 
-  Clock, 
-  CheckCircle, 
-  XCircle,
-  Search,
-  Filter,
-  RefreshCw,
-  Eye,
-  UserPlus,
-  Phone
-} from "lucide-react";
+import { StatusBadge } from "@/components/status-badge";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
+import type { Application, User as AppUser, Procedure, ApplicationDocument } from "@shared/schema";
 
-interface AdminUser {
-  id: string;
-  username: string;
-  role: string;
-  fullName: string | null;
-}
-
-interface EnrichedRequest {
-  id: string;
-  trackingCode: string;
-  citizenId: string;
-  serviceId: string;
-  status: string;
-  paymentStatus: string;
-  notes: string | null;
-  createdAt: string;
-  updatedAt: string;
-  citizen: {
-    nom: string;
-    postNom: string;
-    prenom: string;
-    nationalId: string;
-    phoneNumber: string;
-  } | null;
-  service: {
-    name: string;
-    authority: string;
-  } | null;
-}
-
-const statusLabels: Record<string, string> = {
-  pending: "En attente",
-  payment: "Paiement requis",
-  processing: "En traitement",
-  signature: "Signature",
-  ready: "Prêt",
-  delivered: "Livré",
-  rejected: "Rejeté",
-};
-
-const statusColors: Record<string, string> = {
-  pending: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
-  payment: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
-  processing: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
-  signature: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400",
-  ready: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
-  delivered: "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400",
-  rejected: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+type EnrichedApplication = Application & {
+  user: AppUser;
+  procedure: Procedure;
+  documents: ApplicationDocument[];
 };
 
 export default function AdminDashboard() {
-  const [, navigate] = useLocation();
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
+  const { user: agent } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [selectedRequest, setSelectedRequest] = useState<EnrichedRequest | null>(null);
-  const [newStatus, setNewStatus] = useState("");
-  const [notes, setNotes] = useState("");
-  const [showCreateUser, setShowCreateUser] = useState(false);
-  const [newUser, setNewUser] = useState({ username: "", password: "", fullName: "", role: "staff" });
+  const [statusFilter, setStatusFilter] = useState("all");
 
-  const { data: user, isLoading: userLoading, error: userError } = useQuery<AdminUser>({
-    queryKey: ["/api/auth/me"],
-    retry: false,
+  const { data: applications, isLoading } = useQuery<EnrichedApplication[]>({
+    queryKey: ["/api/admin/applications"],
   });
 
-  const { data: requests, isLoading: requestsLoading, refetch } = useQuery<EnrichedRequest[]>({
-    queryKey: ["/api/admin/requests"],
-    enabled: !!user,
-  });
-
-  useEffect(() => {
-    if (userError) {
-      navigate("/admin/login");
-    }
-  }, [userError, navigate]);
-
-  const logoutMutation = useMutation({
-    mutationFn: async () => {
-      await apiRequest("POST", "/api/auth/logout", {});
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
-      navigate("/admin/login");
-    },
-  });
-
-  const updateStatusMutation = useMutation({
-    mutationFn: async ({ id, status, notes }: { id: string; status: string; notes: string }) => {
-      const response = await apiRequest("PATCH", `/api/admin/requests/${id}/status`, { status, notes });
-      return response.json();
-    },
-    onSuccess: () => {
-      toast({
-        title: "Statut mis à jour",
-        description: "La demande a été mise à jour avec succès",
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/requests"] });
-      setSelectedRequest(null);
-    },
-    onError: () => {
-      toast({
-        title: "Erreur",
-        description: "Impossible de mettre à jour le statut",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const createUserMutation = useMutation({
-    mutationFn: async (userData: typeof newUser) => {
-      const response = await apiRequest("POST", "/api/auth/register", userData);
-      return response.json();
-    },
-    onSuccess: () => {
-      toast({
-        title: "Utilisateur créé",
-        description: "Le nouvel utilisateur a été créé avec succès",
-      });
-      setShowCreateUser(false);
-      setNewUser({ username: "", password: "", fullName: "", role: "staff" });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Erreur",
-        description: error.message || "Impossible de créer l'utilisateur",
-        variant: "destructive",
-      });
-    },
-  });
-
-  if (userLoading) {
+  if (!agent || agent.role === "citizen") {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <RefreshCw className="h-8 w-8 animate-spin text-primary" />
+      <div className="flex flex-col items-center justify-center min-h-[60vh] p-8 text-center">
+        <div className="h-20 w-20 rounded-full bg-rose-100 flex items-center justify-center text-rose-500 mb-6">
+          <AlertCircle className="h-10 w-10" />
+        </div>
+        <h2 className="text-2xl font-black text-slate-900 mb-2">Accès Refusé</h2>
+        <p className="text-slate-500 max-w-sm mb-8">Cet espace est réservé au personnel administratif autorisé. Veuillez contacter votre administrateur si vous pensez qu'il s'agit d'une erreur.</p>
+        <Button onClick={() => window.location.href = "/"}>Retour à l'accueil</Button>
       </div>
     );
   }
 
-  if (!user) {
-    return null;
-  }
-
-  const filteredRequests = requests?.filter((req) => {
+  const filteredApps = applications?.filter(app => {
     const matchesSearch =
-      req.trackingCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      req.citizen?.nom?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      req.citizen?.prenom?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      req.citizen?.nationalId?.includes(searchTerm);
-    const matchesStatus = statusFilter === "all" || req.status === statusFilter;
+      app.user.prenom.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      app.user.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      app.procedure.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      app.reference.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesStatus = statusFilter === "all" || app.status === statusFilter;
+
     return matchesSearch && matchesStatus;
   });
 
   const stats = {
-    total: requests?.length || 0,
-    pending: requests?.filter((r) => r.status === "pending" || r.status === "payment").length || 0,
-    processing: requests?.filter((r) => r.status === "processing" || r.status === "signature").length || 0,
-    completed: requests?.filter((r) => r.status === "ready" || r.status === "delivered").length || 0,
-  };
-
-  const handleUpdateStatus = () => {
-    if (selectedRequest && newStatus) {
-      updateStatusMutation.mutate({
-        id: selectedRequest.id,
-        status: newStatus,
-        notes,
-      });
-    }
+    pending: applications?.filter(a => ["submitted", "under_review"].includes(a.status)).length || 0,
+    urgent: applications?.filter(a => a.status === "pending_user_action").length || 0,
+    total: applications?.length || 0,
+    completed: applications?.filter(a => ["ready", "delivered", "approved"].includes(a.status)).length || 0
   };
 
   return (
-    <div className="min-h-screen bg-muted/30">
-      <header className="bg-card border-b sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-3 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <Shield className="h-6 w-6 text-primary" />
+    <div className="bg-slate-50 min-h-screen pb-20">
+      {/* Metrics Header */}
+      <div className="bg-white border-b border-slate-200 pt-10 pb-12">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
             <div>
-              <h1 className="font-bold text-lg">DOCU243 Admin</h1>
-              <p className="text-xs text-muted-foreground">
-                {user.fullName || user.username} ({user.role})
-              </p>
+              <div className="flex items-center gap-2 text-primary font-black text-xs uppercase tracking-widest mb-1">
+                <ShieldCheck className="h-4 w-4" />
+                Administration Centrale
+              </div>
+              <h1 className="text-3xl font-black text-slate-900 tracking-tight">Espace Gestionnaire</h1>
+            </div>
+
+            <div className="flex items-center gap-2 bg-slate-100 p-1.5 rounded-2xl">
+              <Link href="/admin">
+                <Button variant="ghost" className="rounded-xl font-bold bg-white shadow-sm">Dossiers</Button>
+              </Link>
+              <Link href="/admin/procedures">
+                <Button variant="ghost" className="rounded-xl font-bold text-slate-500 hover:text-slate-900">Procédures</Button>
+              </Link>
+              <Link href="/admin/users">
+                <Button variant="ghost" className="rounded-xl font-bold text-slate-500 hover:text-slate-900">Utilisateurs</Button>
+              </Link>
+              <Link href="/admin/logs">
+                <Button variant="ghost" className="rounded-xl font-bold text-slate-500 hover:text-slate-900">Logs</Button>
+              </Link>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <Input
+                  placeholder="Rechercher..."
+                  className="pl-10 w-full md:w-[240px] bg-slate-50 border-none rounded-xl h-12 focus-visible:ring-primary/20"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+              <select
+                className="h-12 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-600"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+              >
+                <option value="all">Tous les statuts</option>
+                <option value="submitted">Soumis</option>
+                <option value="under_review">En examen</option>
+                <option value="pending_user_action">Action requise</option>
+                <option value="approved">Approuvé</option>
+                <option value="ready">Prêt</option>
+                <option value="delivered">Délivré</option>
+                <option value="rejected">Rejeté</option>
+              </select>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Dialog open={showCreateUser} onOpenChange={setShowCreateUser}>
-              <DialogTrigger asChild>
-                <Button variant="outline" size="sm" data-testid="button-create-user">
-                  <UserPlus className="h-4 w-4 mr-2" />
-                  Nouvel utilisateur
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Créer un utilisateur</DialogTitle>
-                  <DialogDescription>
-                    Ajoutez un nouveau membre à l'équipe administrative
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4 py-4">
-                  <div className="space-y-2">
-                    <Label>Nom d'utilisateur</Label>
-                    <Input
-                      value={newUser.username}
-                      onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
-                      placeholder="utilisateur"
-                      data-testid="input-new-username"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Mot de passe</Label>
-                    <Input
-                      type="password"
-                      value={newUser.password}
-                      onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                      placeholder="Mot de passe sécurisé"
-                      data-testid="input-new-password"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Nom complet</Label>
-                    <Input
-                      value={newUser.fullName}
-                      onChange={(e) => setNewUser({ ...newUser, fullName: e.target.value })}
-                      placeholder="Jean Kabila"
-                      data-testid="input-new-fullname"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Rôle</Label>
-                    <Select
-                      value={newUser.role}
-                      onValueChange={(value) => setNewUser({ ...newUser, role: value })}
-                    >
-                      <SelectTrigger data-testid="select-new-role">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="staff">Personnel</SelectItem>
-                        <SelectItem value="admin">Administrateur</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <DialogFooter>
-                  <DialogClose asChild>
-                    <Button variant="outline">Annuler</Button>
-                  </DialogClose>
-                  <Button
-                    onClick={() => createUserMutation.mutate(newUser)}
-                    disabled={createUserMutation.isPending}
-                    data-testid="button-submit-new-user"
-                  >
-                    {createUserMutation.isPending ? "Création..." : "Créer"}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => logoutMutation.mutate()}
-              data-testid="button-admin-logout"
-            >
-              <LogOut className="h-4 w-4 mr-2" />
-              Déconnexion
-            </Button>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <MetricCard
+              label="À réviser"
+              value={stats.pending}
+              icon={<Clock className="h-5 w-5" />}
+              color="blue"
+              description="Nouveaux dossiers soumis"
+            />
+            <MetricCard
+              label="Urgents"
+              value={stats.urgent}
+              icon={<AlertCircle className="h-5 w-5" />}
+              color="rose"
+              description="Action citoyenne requise"
+            />
+            <MetricCard
+              label="Finalisés"
+              value={stats.completed}
+              icon={<CheckCircle className="h-5 w-5" />}
+              color="emerald"
+              description="Approuvés aujourd'hui"
+            />
+            <MetricCard
+              label="Total"
+              value={stats.total}
+              icon={<FileText className="h-5 w-5" />}
+              color="slate"
+              description="Total dossiers gérés"
+            />
           </div>
         </div>
-      </header>
+      </div>
 
-      <main className="container mx-auto px-4 py-6">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-full bg-primary/10">
-                  <FileText className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.total}</p>
-                  <p className="text-sm text-muted-foreground">Total demandes</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-full bg-yellow-100 dark:bg-yellow-900/30">
-                  <Clock className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.pending}</p>
-                  <p className="text-sm text-muted-foreground">En attente</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-full bg-blue-100 dark:bg-blue-900/30">
-                  <Users className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.processing}</p>
-                  <p className="text-sm text-muted-foreground">En cours</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-full bg-green-100 dark:bg-green-900/30">
-                  <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.completed}</p>
-                  <p className="text-sm text-muted-foreground">Terminées</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <Card>
-          <CardHeader>
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-              <div>
-                <CardTitle>Gestion des demandes</CardTitle>
-                <CardDescription>
-                  Visualisez et gérez toutes les demandes de documents
-                </CardDescription>
-              </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Rechercher..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-9 w-[200px]"
-                    data-testid="input-search-requests"
-                  />
-                </div>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-[150px]" data-testid="select-filter-status">
-                    <Filter className="h-4 w-4 mr-2" />
-                    <SelectValue placeholder="Filtrer" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Tous</SelectItem>
-                    <SelectItem value="pending">En attente</SelectItem>
-                    <SelectItem value="payment">Paiement</SelectItem>
-                    <SelectItem value="processing">Traitement</SelectItem>
-                    <SelectItem value="signature">Signature</SelectItem>
-                    <SelectItem value="ready">Prêt</SelectItem>
-                    <SelectItem value="delivered">Livré</SelectItem>
-                    <SelectItem value="rejected">Rejeté</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button variant="outline" size="icon" onClick={() => refetch()} data-testid="button-refresh">
-                  <RefreshCw className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {requestsLoading ? (
-              <div className="flex justify-center py-8">
-                <RefreshCw className="h-8 w-8 animate-spin text-primary" />
-              </div>
-            ) : filteredRequests?.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <FileText className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                <p>Aucune demande trouvée</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="text-left py-3 px-2 font-medium text-muted-foreground">Code</th>
-                      <th className="text-left py-3 px-2 font-medium text-muted-foreground">Citoyen</th>
-                      <th className="text-left py-3 px-2 font-medium text-muted-foreground">Service</th>
-                      <th className="text-left py-3 px-2 font-medium text-muted-foreground">Statut</th>
-                      <th className="text-left py-3 px-2 font-medium text-muted-foreground">Date</th>
-                      <th className="text-right py-3 px-2 font-medium text-muted-foreground">Actions</th>
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-4 -mt-6">
+        <Card className="rounded-3xl shadow-xl shadow-slate-200/50 border-none overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="bg-slate-900 text-white border-none">
+                  <th className="px-6 py-5 text-left text-[10px] font-black uppercase tracking-widest opacity-60">Citoyen</th>
+                  <th className="px-6 py-5 text-left text-[10px] font-black uppercase tracking-widest opacity-60">Procédure</th>
+                  <th className="px-6 py-5 text-left text-[10px] font-black uppercase tracking-widest opacity-60">Statut</th>
+                  <th className="px-6 py-5 text-left text-[10px] font-black uppercase tracking-widest opacity-60">Dernière Mise à jour</th>
+                  <th className="px-6 py-5 text-right text-[10px] font-black uppercase tracking-widest opacity-60">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {isLoading ? (
+                  Array(5).fill(0).map((_, i) => (
+                    <tr key={i} className="animate-pulse">
+                      <td colSpan={5} className="px-6 py-8"><div className="h-8 bg-slate-100 rounded-lg w-full" /></td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {filteredRequests?.map((request) => (
-                      <tr key={request.id} className="border-b hover-elevate" data-testid={`row-request-${request.id}`}>
-                        <td className="py-3 px-2">
-                          <code className="text-sm font-mono bg-muted px-2 py-1 rounded">
-                            {request.trackingCode}
-                          </code>
-                        </td>
-                        <td className="py-3 px-2">
-                          <div>
-                            <p className="font-medium">
-                              {request.citizen?.prenom} {request.citizen?.nom}
-                            </p>
-                            <p className="text-xs text-muted-foreground flex items-center gap-1">
-                              <Phone className="h-3 w-3" />
-                              {request.citizen?.phoneNumber}
-                            </p>
+                  ))
+                ) : filteredApps?.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-20 text-center">
+                      <div className="flex flex-col items-center opacity-40">
+                        <FileText className="h-12 w-12 mb-4" />
+                        <p className="font-bold">Aucun dossier trouvé</p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredApps?.map(app => (
+                    <tr key={app.id} className="hover:bg-slate-50/80 transition-colors group">
+                      <td className="px-6 py-5">
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 group-hover:bg-primary/10 group-hover:text-primary transition-colors">
+                            <User className="h-5 w-5" />
                           </div>
-                        </td>
-                        <td className="py-3 px-2">
-                          <p className="font-medium">{request.service?.name}</p>
-                          <p className="text-xs text-muted-foreground">{request.service?.authority}</p>
-                        </td>
-                        <td className="py-3 px-2">
-                          <Badge variant="secondary" className={statusColors[request.status]}>
-                            {statusLabels[request.status]}
-                          </Badge>
-                        </td>
-                        <td className="py-3 px-2 text-sm text-muted-foreground">
-                          {new Date(request.createdAt).toLocaleDateString("fr-FR")}
-                        </td>
-                        <td className="py-3 px-2 text-right">
-                          <Dialog>
-                            <DialogTrigger asChild>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  setSelectedRequest(request);
-                                  setNewStatus(request.status);
-                                  setNotes(request.notes || "");
-                                }}
-                                data-testid={`button-view-${request.id}`}
-                              >
-                                <Eye className="h-4 w-4 mr-1" />
-                                Gérer
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent className="max-w-lg">
-                              <DialogHeader>
-                                <DialogTitle>Détails de la demande</DialogTitle>
-                                <DialogDescription>
-                                  Code: {selectedRequest?.trackingCode}
-                                </DialogDescription>
-                              </DialogHeader>
-                              {selectedRequest && (
-                                <div className="space-y-4 py-4">
-                                  <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                      <Label className="text-muted-foreground">Citoyen</Label>
-                                      <p className="font-medium">
-                                        {selectedRequest.citizen?.prenom} {selectedRequest.citizen?.postNom} {selectedRequest.citizen?.nom}
-                                      </p>
-                                    </div>
-                                    <div>
-                                      <Label className="text-muted-foreground">ID National</Label>
-                                      <p className="font-mono">{selectedRequest.citizen?.nationalId}</p>
-                                    </div>
-                                    <div>
-                                      <Label className="text-muted-foreground">Service</Label>
-                                      <p className="font-medium">{selectedRequest.service?.name}</p>
-                                    </div>
-                                    <div>
-                                      <Label className="text-muted-foreground">Paiement</Label>
-                                      <Badge variant={selectedRequest.paymentStatus === "paid" ? "default" : "secondary"}>
-                                        {selectedRequest.paymentStatus === "paid" ? "Payé" : "Non payé"}
-                                      </Badge>
-                                    </div>
-                                  </div>
-                                  <div className="space-y-2">
-                                    <Label>Mettre à jour le statut</Label>
-                                    <Select value={newStatus} onValueChange={setNewStatus}>
-                                      <SelectTrigger data-testid="select-update-status">
-                                        <SelectValue />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="pending">En attente</SelectItem>
-                                        <SelectItem value="payment">Paiement requis</SelectItem>
-                                        <SelectItem value="processing">En traitement</SelectItem>
-                                        <SelectItem value="signature">Signature</SelectItem>
-                                        <SelectItem value="ready">Prêt</SelectItem>
-                                        <SelectItem value="delivered">Livré</SelectItem>
-                                        <SelectItem value="rejected">Rejeté</SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-                                  <div className="space-y-2">
-                                    <Label>Notes internes</Label>
-                                    <Textarea
-                                      value={notes}
-                                      onChange={(e) => setNotes(e.target.value)}
-                                      placeholder="Ajoutez des notes sur cette demande..."
-                                      data-testid="textarea-notes"
-                                    />
-                                  </div>
-                                </div>
-                              )}
-                              <DialogFooter>
-                                <DialogClose asChild>
-                                  <Button variant="outline">Fermer</Button>
-                                </DialogClose>
-                                <Button
-                                  onClick={handleUpdateStatus}
-                                  disabled={updateStatusMutation.isPending}
-                                  data-testid="button-update-status"
-                                >
-                                  {updateStatusMutation.isPending ? "Mise à jour..." : "Mettre à jour"}
-                                </Button>
-                              </DialogFooter>
-                            </DialogContent>
-                          </Dialog>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </CardContent>
+                          <div>
+                            <div className="font-black text-slate-900 leading-none mb-1">{app.user.prenom} {app.user.nom}</div>
+                            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">{app.user.email}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-5">
+                        <div className="flex items-center gap-2">
+                          <div className="h-2 w-2 rounded-full bg-primary" />
+                          <span className="font-bold text-slate-700">{app.procedure.title}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-5">
+                        <StatusBadge status={app.status as any} />
+                      </td>
+                      <td className="px-6 py-5">
+                        <div className="flex items-center gap-2 text-slate-500 font-bold text-sm">
+                          <Calendar className="h-4 w-4" />
+                          {format(new Date(app.updatedAt ?? app.createdAt ?? Date.now()), "dd MMM yyyy", { locale: fr })}
+                        </div>
+                      </td>
+                      <td className="px-6 py-5 text-right">
+                        <Link href={`/application/${app.id}`}>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="rounded-xl font-bold h-10 px-4 group/btn"
+                          >
+                            Traiter
+                            <ChevronRight className="h-4 w-4 ml-1 group-hover/btn:translate-x-1 transition-transform" />
+                          </Button>
+                        </Link>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </Card>
-      </main>
+      </div>
     </div>
+  );
+}
+
+function MetricCard({ label, value, icon, color, description }: any) {
+  const colors: any = {
+    blue: "bg-blue-50 text-blue-600 border-blue-100",
+    rose: "bg-rose-50 text-rose-600 border-rose-100",
+    emerald: "bg-emerald-50 text-emerald-600 border-emerald-100",
+    slate: "bg-slate-50 text-slate-600 border-slate-100"
+  };
+
+  return (
+    <Card className={`rounded-3xl border ${colors[color]} shadow-none`}>
+      <CardContent className="p-6">
+        <div className="flex justify-between items-start mb-4">
+          <div className="h-10 w-10 rounded-xl bg-white flex items-center justify-center shadow-sm">
+            {icon}
+          </div>
+          <div className="text-3xl font-black tracking-tighter">{value}</div>
+        </div>
+        <div>
+          <div className="text-xs font-black uppercase tracking-widest opacity-80">{label}</div>
+          <div className="text-[10px] font-bold opacity-60 tracking-tight">{description}</div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

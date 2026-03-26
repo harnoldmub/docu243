@@ -1,145 +1,179 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, timestamp, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, timestamp, boolean, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// Citizen Identity with trust levels
-export const citizens = pgTable("citizens", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  nom: text("nom").notNull(),
-  postNom: text("post_nom").notNull(),
-  prenom: text("prenom").notNull(),
-  nationalId: text("national_id").notNull().unique(),
-  phoneNumber: text("phone_number").notNull(),
-  trustLevel: integer("trust_level").notNull().default(1), // 1, 2, or 3
-  confidenceIndex: integer("confidence_index").notNull().default(0), // 0-100
-  createdAt: timestamp("created_at").defaultNow(),
-});
-
-export const insertCitizenSchema = createInsertSchema(citizens).omit({
-  id: true,
-  createdAt: true,
-});
-
-export type InsertCitizen = z.infer<typeof insertCitizenSchema>;
-export type Citizen = typeof citizens.$inferSelect;
-
-// Administrative Services
-export const services = pgTable("services", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: text("name").notNull(),
-  description: text("description").notNull(),
-  authority: text("authority").notNull(),
-  requiredDocuments: text("required_documents").array().notNull(),
-  price: integer("price").notNull(), // in CDF (Congolese Franc)
-  processingTimeDays: integer("processing_time_days").notNull(),
-  category: text("category").notNull(),
-  icon: text("icon").notNull(),
-});
-
-export const insertServiceSchema = createInsertSchema(services).omit({
-  id: true,
-});
-
-export type InsertService = z.infer<typeof insertServiceSchema>;
-export type Service = typeof services.$inferSelect;
-
-// Document Requests (Workflow)
-export const documentRequests = pgTable("document_requests", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  citizenId: varchar("citizen_id").notNull(),
-  serviceId: varchar("service_id").notNull(),
-  status: text("status").notNull().default("pending"), // pending, payment, processing, signature, ready, delivered, rejected
-  trackingCode: text("tracking_code").notNull().unique(),
-  submittedDocuments: text("submitted_documents").array(),
-  paymentStatus: text("payment_status").notNull().default("unpaid"), // unpaid, pending, paid, failed
-  paymentReference: text("payment_reference"),
-  rejectionReason: text("rejection_reason"),
-  notes: text("notes"), // Internal admin notes
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
-
-export const insertDocumentRequestSchema = createInsertSchema(documentRequests).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-export type InsertDocumentRequest = z.infer<typeof insertDocumentRequestSchema>;
-export type DocumentRequest = typeof documentRequests.$inferSelect;
-
-// Payments
-export const payments = pgTable("payments", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  documentRequestId: varchar("document_request_id").notNull(),
-  amount: integer("amount").notNull(),
-  provider: text("provider").notNull(), // mpesa, airtel, orange
-  phoneNumber: text("phone_number").notNull(),
-  status: text("status").notNull().default("initiated"), // initiated, pending, confirmed, failed
-  transactionId: text("transaction_id"),
-  createdAt: timestamp("created_at").defaultNow(),
-});
-
-export const insertPaymentSchema = createInsertSchema(payments).omit({
-  id: true,
-  createdAt: true,
-});
-
-export type InsertPayment = z.infer<typeof insertPaymentSchema>;
-export type Payment = typeof payments.$inferSelect;
-
-// Audit Log for traceability
-export const auditLogs = pgTable("audit_logs", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  actorId: varchar("actor_id").notNull(),
-  action: text("action").notNull(),
-  resource: text("resource").notNull(),
-  resourceId: varchar("resource_id"),
-  details: text("details"),
-  hash: text("hash").notNull(), // SHA-256 for blockchain-like traceability
-  timestamp: timestamp("timestamp").defaultNow(),
-});
-
-export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({
-  id: true,
-  timestamp: true,
-});
-
-export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
-export type AuditLog = typeof auditLogs.$inferSelect;
-
-// USSD Session for simulation
-export const ussdSessions = pgTable("ussd_sessions", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  msisdn: text("msisdn").notNull(),
-  currentMenu: text("current_menu").notNull().default("main"),
-  sessionData: text("session_data"),
-  createdAt: timestamp("created_at").defaultNow(),
-});
-
-export const insertUssdSessionSchema = createInsertSchema(ussdSessions).omit({
-  id: true,
-  createdAt: true,
-});
-
-export type InsertUssdSession = z.infer<typeof insertUssdSessionSchema>;
-export type UssdSession = typeof ussdSessions.$inferSelect;
-
-// Admin/Staff users for backend management
+// --- Users & Roles ---
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  username: text("username").notNull().unique(),
+  prenom: text("prenom").notNull(),
+  nom: text("nom").notNull(),
+  email: text("email").notNull().unique(),
+  phone: text("phone").notNull(),
   password: text("password").notNull(),
-  role: text("role").notNull().default("staff"), // admin, staff
-  fullName: text("full_name"),
+  role: text("role").notNull().default("citizen"), // citizen, agent, admin, super_admin
+  institution: text("institution"), // For agents
+  status: text("status").notNull().default("active"),
   createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
+  updatedAt: true,
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
+
+// --- Procedures (Definitions) ---
+export const procedures = pgTable("procedures", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: text("title").notNull(),
+  slug: text("slug").notNull().unique(),
+  description: text("description").notNull(),
+  category: text("category").notNull(), // civil, identity, property, etc.
+  institution: text("institution").notNull(),
+  estimatedDays: integer("estimated_days").notNull(),
+  cost: integer("cost").notNull(), // in CDF
+  status: text("status").notNull().default("available"), // available, coming_soon
+  isActive: boolean("is_active").notNull().default(true),
+  icon: text("icon").notNull().default("FileText"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertProcedureSchema = createInsertSchema(procedures).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type Procedure = typeof procedures.$inferSelect;
+
+// --- Procedure Dynamic Fields ---
+export const procedureFields = pgTable("procedure_fields", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  procedureId: varchar("procedure_id").notNull(),
+  label: text("label").notNull(),
+  type: text("type").notNull(), // text, number, date, select, textarea
+  required: boolean("required").notNull().default(true),
+  options: jsonb("options"), // For selects
+  order: integer("order").notNull().default(0),
+});
+
+export const insertProcedureFieldSchema = createInsertSchema(procedureFields).omit({
+  id: true,
+});
+
+export type ProcedureField = typeof procedureFields.$inferSelect;
+
+// --- Procedure Required Documents ---
+export const procedureRequiredDocuments = pgTable("procedure_required_documents", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  procedureId: varchar("procedure_id").notNull(),
+  name: text("name").notNull(),
+  description: text("description").notNull(),
+  required: boolean("required").notNull().default(true),
+  acceptedFormats: text("accepted_formats").array().notNull(), // pdf, jpg, png
+  maxSizeMb: integer("max_size_mb").notNull().default(5),
+  order: integer("order").notNull().default(0),
+});
+
+export const insertProcedureRequiredDocSchema = createInsertSchema(procedureRequiredDocuments).omit({
+  id: true,
+});
+
+export type ProcedureRequiredDoc = typeof procedureRequiredDocuments.$inferSelect;
+
+// --- Applications (Submission instances) ---
+export const applications = pgTable("applications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  reference: text("reference").notNull().unique(), // e.g., DOC-2024-ABCDE
+  userId: varchar("user_id").notNull(),
+  procedureId: varchar("procedure_id").notNull(),
+  status: text("status").notNull().default("draft"), // draft, submitted, received, under_review, pending_user_action, pending_payment, approved, rejected, ready, delivered
+  submittedAt: timestamp("submitted_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertApplicationSchema = createInsertSchema(applications).omit({
+  id: true,
+  reference: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertApplication = z.infer<typeof insertApplicationSchema>;
+export type Application = typeof applications.$inferSelect;
+
+// --- Application Field Values ---
+export const applicationFieldValues = pgTable("application_field_values", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  applicationId: varchar("application_id").notNull(),
+  fieldId: varchar("field_id").notNull(),
+  value: text("value").notNull(),
+});
+
+export type ApplicationFieldValue = typeof applicationFieldValues.$inferSelect;
+
+// --- Application Documents ---
+export const applicationDocuments = pgTable("application_documents", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  applicationId: varchar("application_id").notNull(),
+  requiredDocId: varchar("required_doc_id").notNull(),
+  fileUrl: text("file_url").notNull(),
+  originalName: text("original_name").notNull(),
+  mimeType: text("mime_type").notNull(),
+  size: integer("size").notNull(),
+  status: text("status").notNull().default("submitted"), // submitted, approved, rejected, replacement_requested
+  rejectionReason: text("rejection_reason"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export type ApplicationDocument = typeof applicationDocuments.$inferSelect;
+
+// --- Payments ---
+export const payments = pgTable("payments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  applicationId: varchar("application_id").notNull(),
+  amount: integer("amount").notNull(),
+  status: text("status").notNull().default("pending"), // pending, succeeded, failed, refunded
+  provider: text("provider").notNull(), // mpesa, airtel, orange
+  transactionRef: text("transaction_reference"),
+  paidAt: timestamp("paid_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export type Payment = typeof payments.$inferSelect;
+
+// --- Notifications ---
+export const notifications = pgTable("notifications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  type: text("type").notNull(), // application_update, payment_received, document_rejected, etc.
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  readAt: timestamp("read_at"),
+  metadata: jsonb("metadata"), // e.g., { applicationId: "..." }
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export type Notification = typeof notifications.$inferSelect;
+
+// --- Activity Logs ---
+export const activityLogs = pgTable("activity_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  actorId: varchar("actor_id").notNull(),
+  action: text("action").notNull(), // submit, approve_doc, reject_doc, change_status
+  entityType: text("entity_type").notNull(), // application, document, procedure
+  entityId: varchar("entity_id").notNull(),
+  oldValue: text("old_value"),
+  newValue: text("new_value"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export type ActivityLog = typeof activityLogs.$inferSelect;
