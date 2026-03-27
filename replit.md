@@ -42,6 +42,7 @@ The server handles:
 - **Database**: PostgreSQL
 - **Schema Location**: `shared/schema.ts` (shared between frontend and backend)
 - **Migrations**: Managed via Drizzle Kit (`drizzle-kit push`)
+- **File Storage**: Disk-based under `uploads/{DOCU_XXX}/` — served via auth-protected `GET /file/:reference/:filename`
 
 Key database entities:
 - `citizens`: Identity with trust levels and confidence index

@@ -4,6 +4,8 @@ import { storage } from "./storage";
 import { db } from "./db";
 import bcrypt from "bcrypt";
 import multer from "multer";
+import fs from "fs";
+import path from "path";
 import { seedCatalog } from "./seed";
 import {
   users,
@@ -15,7 +17,11 @@ import {
 } from "@shared/schema";
 import { eq, desc, asc, sql } from "drizzle-orm";
 
-// Multer: store files in memory (we persist as base64 in PostgreSQL)
+// Ensure uploads root directory exists
+const UPLOADS_ROOT = path.resolve("uploads");
+if (!fs.existsSync(UPLOADS_ROOT)) fs.mkdirSync(UPLOADS_ROOT, { recursive: true });
+
+// Multer: memory storage — we write to disk manually after getting the dossier reference
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB max
@@ -352,41 +358,85 @@ export async function registerRoutes(
 
   // ============ FILE UPLOAD & DOWNLOAD ============
 
-  // Upload a file linked to an application (multipart/form-data)
+  // Upload a file linked to an application — saved to disk under uploads/{reference}/
   app.post(
     "/api/applications/:id/upload",
     requireAuth,
     upload.single("file"),
     async (req: Request, res: Response) => {
-      if (!req.file) {
-        return res.status(400).json({ error: "Aucun fichier reçu." });
-      }
+      if (!req.file) return res.status(400).json({ error: "Aucun fichier reçu." });
+
       const dossier = await storage.getApplication(req.params.id);
       if (!dossier) return res.status(404).json({ error: "Dossier introuvable" });
       if (dossier.userId !== req.session.userId) return res.status(403).json({ error: "Accès refusé" });
 
-      const base64Data = req.file.buffer.toString("base64");
+      // Build safe filename: timestamp + sanitised original name
+      const safeOriginal = req.file.originalname.replace(/[^a-zA-Z0-9._-]/g, "_");
+      const filename = `${Date.now()}-${safeOriginal}`;
+      const reference = dossier.reference; // e.g. DOCU_4568B0
+
+      // Create directory uploads/{reference}/ if needed
+      const dir = path.join(UPLOADS_ROOT, reference);
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+
+      // Write file to disk
+      const filePath = path.join(dir, filename);
+      fs.writeFileSync(filePath, req.file.buffer);
+
+      // Store metadata in DB (no base64 — filePath points to disk)
       const fileRecord = await storage.createFileUpload({
         applicationId: req.params.id,
         originalName: req.file.originalname,
         mimeType: req.file.mimetype,
         size: req.file.size,
-        data: base64Data,
+        data: "",
+        filePath: filePath,
         uploadedBy: req.session.userId!,
       });
 
-      // Return the file URL pattern used by the frontend
-      const fileUrl = `/api/files/${fileRecord.id}`;
+      const fileUrl = `/file/${reference}/${filename}`;
       res.status(201).json({ fileId: fileRecord.id, fileUrl, originalName: req.file.originalname });
     }
   );
 
-  // Serve a stored file by its ID
+  // Serve files stored on disk — /file/{reference}/{filename}
+  // Auth required: citizen sees only their own files, agents see all
+  app.get("/file/:reference/:filename", requireAuth, async (req: Request, res: Response) => {
+    const { reference, filename } = req.params;
+    const isAgent = ["agent", "admin", "super_admin"].includes(req.session.role || "");
+
+    // For citizens, verify they own a dossier with this reference
+    if (!isAgent) {
+      const app_ = await storage.getApplicationByReference(reference);
+      if (!app_ || app_.userId !== req.session.userId) {
+        return res.status(403).json({ error: "Accès refusé" });
+      }
+    }
+
+    const filePath = path.join(UPLOADS_ROOT, reference, filename);
+    if (!fs.existsSync(filePath)) return res.status(404).json({ error: "Fichier introuvable" });
+
+    // Determine mime type from extension
+    const ext = path.extname(filename).toLowerCase();
+    const mimeTypes: Record<string, string> = {
+      ".pdf": "application/pdf",
+      ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+      ".png": "image/png",
+      ".webp": "image/webp",
+    };
+    const mimeType = mimeTypes[ext] || "application/octet-stream";
+
+    res.setHeader("Content-Type", mimeType);
+    res.setHeader("Content-Disposition", `inline; filename="${encodeURIComponent(filename)}"`);
+    res.setHeader("Cache-Control", "private, max-age=3600");
+    res.sendFile(filePath);
+  });
+
+  // Legacy route — serve old base64 files still stored in PostgreSQL
   app.get("/api/files/:id", requireAuth, async (req: Request, res: Response) => {
     const fileRecord = await storage.getFileUpload(req.params.id);
     if (!fileRecord) return res.status(404).json({ error: "Fichier introuvable" });
 
-    // Agents/admins can see any file; citizens can only see their own
     const isAgent = ["agent", "admin", "super_admin"].includes(req.session.role || "");
     if (!isAgent) {
       const dossier = await storage.getApplication(fileRecord.applicationId);
@@ -395,6 +445,16 @@ export async function registerRoutes(
       }
     }
 
+    // New files: serve from disk via filePath
+    if (fileRecord.filePath && fs.existsSync(fileRecord.filePath)) {
+      res.setHeader("Content-Type", fileRecord.mimeType);
+      res.setHeader("Content-Disposition", `inline; filename="${encodeURIComponent(fileRecord.originalName)}"`);
+      res.setHeader("Cache-Control", "private, max-age=3600");
+      return res.sendFile(fileRecord.filePath);
+    }
+
+    // Legacy: serve from base64 data
+    if (!fileRecord.data) return res.status(404).json({ error: "Fichier introuvable" });
     const buffer = Buffer.from(fileRecord.data, "base64");
     res.setHeader("Content-Type", fileRecord.mimeType);
     res.setHeader("Content-Disposition", `inline; filename="${encodeURIComponent(fileRecord.originalName)}"`);
