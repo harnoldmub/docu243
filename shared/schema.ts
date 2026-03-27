@@ -136,6 +136,22 @@ export const applicationDocuments = pgTable("application_documents", {
 
 export type ApplicationDocument = typeof applicationDocuments.$inferSelect;
 
+// --- File Uploads ---
+// Files are stored directly in PostgreSQL (base64) — no external storage needed.
+// Each file is linked to an application and accessible via GET /api/files/:id
+export const fileUploads = pgTable("file_uploads", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  applicationId: varchar("application_id").notNull(),
+  originalName: text("original_name").notNull(),
+  mimeType: text("mime_type").notNull(),
+  size: integer("size").notNull(),
+  data: text("data").notNull(), // base64 encoded file content
+  uploadedBy: varchar("uploaded_by").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export type FileUpload = typeof fileUploads.$inferSelect;
+
 // --- Payments ---
 export const payments = pgTable("payments", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

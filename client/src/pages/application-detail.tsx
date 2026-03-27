@@ -262,12 +262,24 @@ export default function ApplicationDetail() {
                                                         fileUrl={existingDoc?.fileUrl}
                                                         fileName={existingDoc?.originalName}
                                                         onUpload={async (file) => {
-                                                            // Simulate file upload to a storage service
-                                                            const fakeUrl = `https://storage.docu243.cd/${file.name}`;
+                                                            // Step 1: Upload the binary file to get a permanent URL
+                                                            const formData = new FormData();
+                                                            formData.append("file", file);
+                                                            const uploadRes = await fetch(`/api/applications/${params?.id}/upload`, {
+                                                                method: "POST",
+                                                                body: formData,
+                                                                credentials: "include",
+                                                            });
+                                                            if (!uploadRes.ok) {
+                                                                const err = await uploadRes.json().catch(() => ({ error: "Erreur d'envoi" }));
+                                                                throw new Error(err.error || "Erreur lors de l'upload");
+                                                            }
+                                                            const { fileUrl, originalName } = await uploadRes.json();
+                                                            // Step 2: Register the document link in the application
                                                             await uploadMutation.mutateAsync({
                                                                 requiredDocId: reqDoc.id,
-                                                                fileUrl: fakeUrl,
-                                                                originalName: file.name,
+                                                                fileUrl,
+                                                                originalName: originalName || file.name,
                                                                 mimeType: file.type,
                                                                 size: file.size
                                                             });

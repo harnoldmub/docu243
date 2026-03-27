@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
 import bcrypt from "bcrypt";
+import multer from "multer";
 import { seedCatalog } from "./seed";
 import {
   users,
@@ -13,6 +14,17 @@ import {
   applicationDocuments,
 } from "@shared/schema";
 import { eq, desc, asc, sql } from "drizzle-orm";
+
+// Multer: store files in memory (we persist as base64 in PostgreSQL)
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB max
+  fileFilter: (_req, file, cb) => {
+    const allowed = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
+    if (allowed.includes(file.mimetype)) cb(null, true);
+    else cb(new Error("Type de fichier non accepté. JPEG, PNG, WEBP ou PDF uniquement."));
+  },
+});
 
 declare module "express-session" {
   interface SessionData {
@@ -307,6 +319,59 @@ export async function registerRoutes(
     });
 
     res.status(201).json(doc);
+  });
+
+  // ============ FILE UPLOAD & DOWNLOAD ============
+
+  // Upload a file linked to an application (multipart/form-data)
+  app.post(
+    "/api/applications/:id/upload",
+    requireAuth,
+    upload.single("file"),
+    async (req: Request, res: Response) => {
+      if (!req.file) {
+        return res.status(400).json({ error: "Aucun fichier reçu." });
+      }
+      const dossier = await storage.getApplication(req.params.id);
+      if (!dossier) return res.status(404).json({ error: "Dossier introuvable" });
+      if (dossier.userId !== req.session.userId) return res.status(403).json({ error: "Accès refusé" });
+
+      const base64Data = req.file.buffer.toString("base64");
+      const fileRecord = await storage.createFileUpload({
+        applicationId: req.params.id,
+        originalName: req.file.originalname,
+        mimeType: req.file.mimetype,
+        size: req.file.size,
+        data: base64Data,
+        uploadedBy: req.session.userId!,
+      });
+
+      // Return the file URL pattern used by the frontend
+      const fileUrl = `/api/files/${fileRecord.id}`;
+      res.status(201).json({ fileId: fileRecord.id, fileUrl, originalName: req.file.originalname });
+    }
+  );
+
+  // Serve a stored file by its ID
+  app.get("/api/files/:id", requireAuth, async (req: Request, res: Response) => {
+    const fileRecord = await storage.getFileUpload(req.params.id);
+    if (!fileRecord) return res.status(404).json({ error: "Fichier introuvable" });
+
+    // Agents/admins can see any file; citizens can only see their own
+    const isAgent = ["agent", "admin", "super_admin"].includes(req.session.role || "");
+    if (!isAgent) {
+      const dossier = await storage.getApplication(fileRecord.applicationId);
+      if (!dossier || dossier.userId !== req.session.userId) {
+        return res.status(403).json({ error: "Accès refusé" });
+      }
+    }
+
+    const buffer = Buffer.from(fileRecord.data, "base64");
+    res.setHeader("Content-Type", fileRecord.mimeType);
+    res.setHeader("Content-Disposition", `inline; filename="${encodeURIComponent(fileRecord.originalName)}"`);
+    res.setHeader("Content-Length", buffer.length);
+    res.setHeader("Cache-Control", "private, max-age=3600");
+    res.send(buffer);
   });
 
   // ============ AGENT BACKOFFICE ============

@@ -1,5 +1,7 @@
 import React from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { formatDistanceToNow, format } from "date-fns";
+import { fr } from "date-fns/locale";
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { StatusBadge } from "@/components/status-badge";
@@ -119,7 +121,11 @@ export default function Dashboard() {
                                                         <div className="flex items-center gap-3 mt-1">
                                                             <span className="text-xs text-slate-400 font-medium">#{app.id.slice(0, 8)}</span>
                                                             <span className="h-1 w-1 rounded-full bg-slate-300" />
-                                                            <span className="text-xs text-slate-400 font-medium italic">Mis à jour il y a 2j</span>
+                                                            <span className="text-xs text-slate-400 font-medium italic">
+                                                                {app.updatedAt
+                                                                    ? formatDistanceToNow(new Date(app.updatedAt), { addSuffix: true, locale: fr })
+                                                                    : ""}
+                                                            </span>
                                                         </div>
                                                     </div>
 
@@ -150,7 +156,11 @@ export default function Dashboard() {
                                                     <CheckCircle2 className={cn("h-5 w-5", app.status === "rejected" ? "text-rose-500" : "text-emerald-500")} />
                                                     <div>
                                                         <div className="text-sm font-bold text-slate-700">{app.procedure?.title}</div>
-                                                        <div className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">Livré le 12 Mars 2024</div>
+                                                        <div className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">
+                                                            {app.updatedAt
+                                                                ? format(new Date(app.updatedAt), "d MMM yyyy", { locale: fr })
+                                                                : ""}
+                                                        </div>
                                                     </div>
                                                 </div>
                                                 <StatusBadge status={app.status} size="sm" />
@@ -201,7 +211,9 @@ export default function Dashboard() {
                                                     </p>
                                                 </div>
                                                 <div className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">
-                                                    Il y a 2h
+                                                    {note.createdAt
+                                                        ? formatDistanceToNow(new Date(note.createdAt), { addSuffix: true, locale: fr })
+                                                        : ""}
                                                 </div>
                                             </button>
                                         ))}

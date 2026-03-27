@@ -6,6 +6,7 @@ import {
   applications,
   applicationFieldValues,
   applicationDocuments,
+  fileUploads,
   payments,
   notifications,
   activityLogs,
@@ -16,6 +17,7 @@ import {
   type ProcedureRequiredDoc,
   type Application,
   type InsertApplication,
+  type FileUpload,
   type Payment,
   type Notification,
   type ActivityLog,
@@ -62,6 +64,11 @@ export interface IStorage {
   getNotificationsByUser(userId: string): Promise<Notification[]>;
   createNotification(notification: any): Promise<Notification>;
   markNotificationAsRead(id: string): Promise<void>;
+
+  // File Uploads
+  createFileUpload(file: Omit<FileUpload, "id" | "createdAt">): Promise<FileUpload>;
+  getFileUpload(id: string): Promise<FileUpload | undefined>;
+  getFileUploadsByApplication(applicationId: string): Promise<FileUpload[]>;
 
   // Activity Logs
   createActivityLog(log: any): Promise<ActivityLog>;
@@ -221,6 +228,21 @@ export class DatabaseStorage implements IStorage {
 
   async markNotificationAsRead(id: string): Promise<void> {
     await db.update(notifications).set({ readAt: new Date() }).where(eq(notifications.id, id));
+  }
+
+  // File Uploads
+  async createFileUpload(file: Omit<FileUpload, "id" | "createdAt">): Promise<FileUpload> {
+    const [f] = await db.insert(fileUploads).values(file).returning();
+    return f;
+  }
+
+  async getFileUpload(id: string): Promise<FileUpload | undefined> {
+    const [f] = await db.select().from(fileUploads).where(eq(fileUploads.id, id));
+    return f || undefined;
+  }
+
+  async getFileUploadsByApplication(applicationId: string): Promise<FileUpload[]> {
+    return db.select().from(fileUploads).where(eq(fileUploads.applicationId, applicationId)).orderBy(desc(fileUploads.createdAt));
   }
 
   // Activity Logs

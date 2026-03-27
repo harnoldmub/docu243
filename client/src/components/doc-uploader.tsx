@@ -42,23 +42,25 @@ export function DocUploader({
 }: DocUploaderProps) {
     const [uploading, setUploading] = useState(false);
     const [progress, setProgress] = useState(0);
+    const [uploadError, setUploadError] = useState<string | null>(null);
 
     const onDrop = useCallback(async (acceptedFiles: File[]) => {
         if (acceptedFiles.length > 0) {
             setUploading(true);
+            setUploadError(null);
             setProgress(10);
             try {
-                // Simulate upload progress for UI
                 const interval = setInterval(() => {
                     setProgress((prev) => (prev >= 90 ? 90 : prev + 10));
-                }, 100);
+                }, 150);
 
                 await onUpload(acceptedFiles[0]);
 
                 clearInterval(interval);
                 setProgress(100);
-            } catch (error) {
+            } catch (error: any) {
                 console.error("Upload failed:", error);
+                setUploadError(error?.message || "Erreur lors de l'envoi du fichier.");
             } finally {
                 setTimeout(() => setUploading(false), 500);
             }
@@ -164,6 +166,13 @@ export function DocUploader({
                             <CheckCircle2 className="h-5 w-5" />
                         </div>
                     )}
+                </div>
+            )}
+
+            {uploadError && (
+                <div className="flex gap-2 p-3 rounded-lg bg-rose-50 text-rose-700 border border-rose-100">
+                    <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                    <div className="text-xs font-medium">{uploadError}</div>
                 </div>
             )}
 
