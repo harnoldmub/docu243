@@ -87,9 +87,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         <AuthContext.Provider value={{
             user: user ?? null,
             isLoading,
-            login: async (data) => { await loginMutation.mutateAsync(data); },
-            register: async (data) => { await registerMutation.mutateAsync(data); },
-            logout: async () => { await logoutMutation.mutateAsync(); },
+            login: async (data) => {
+                try { await loginMutation.mutateAsync(data); } catch { /* handled by onError toast */ }
+            },
+            register: async (data) => {
+                try { await registerMutation.mutateAsync(data); } catch { /* handled by onError toast */ }
+            },
+            logout: async () => {
+                try { await logoutMutation.mutateAsync(); } catch { /* ignore */ }
+            },
         }}>
             {children}
         </AuthContext.Provider>
