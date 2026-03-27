@@ -122,7 +122,7 @@ export default function ProcedureDetail() {
                                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Coût total</span>
                                     <div className="flex items-center gap-2 text-slate-900 font-bold">
                                         <Coins className="h-4 w-4 text-amber-500" />
-                                        {procedure.cost.toLocaleString("fr-FR")} CDF
+                                        {procedure.cost === 0 ? "Gratuit" : `$${procedure.cost.toLocaleString("en-US")}`}
                                     </div>
                                 </CardContent>
                             </Card>

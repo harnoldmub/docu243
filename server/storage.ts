@@ -104,6 +104,7 @@ export class DatabaseStorage implements IStorage {
       .where(eq(procedures.isActive, true))
       .orderBy(
         sql`case when ${procedures.status} = 'available' then 0 else 1 end`,
+        asc(procedures.sortOrder),
         asc(procedures.estimatedDays),
         asc(procedures.title),
       );

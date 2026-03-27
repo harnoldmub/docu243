@@ -36,10 +36,12 @@ export const procedures = pgTable("procedures", {
   category: text("category").notNull(), // civil, identity, property, etc.
   institution: text("institution").notNull(),
   estimatedDays: integer("estimated_days").notNull(),
-  cost: integer("cost").notNull(), // in CDF
+  cost: integer("cost").notNull(), // in USD
   status: text("status").notNull().default("available"), // available, coming_soon
   isActive: boolean("is_active").notNull().default(true),
   icon: text("icon").notNull().default("FileText"),
+  isPriority: boolean("is_priority").notNull().default(false),
+  sortOrder: integer("sort_order").notNull().default(99),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

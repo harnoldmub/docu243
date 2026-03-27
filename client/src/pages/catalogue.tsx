@@ -12,7 +12,8 @@ import {
     Building2,
     Tag,
     Loader2,
-    X
+    X,
+    Star
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -173,25 +174,68 @@ export default function Catalogue() {
                             Réinitialiser tout
                         </Button>
                     </div>
-                ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
-                        {filteredProcedures?.map((proc) => (
-                            <ProcedureCard
-                                key={proc.id}
-                                id={proc.id}
-                                title={proc.title}
-                                slug={proc.slug}
-                                description={proc.description}
-                                category={proc.category}
-                                institution={proc.institution}
-                                estimatedDays={proc.estimatedDays}
-                                cost={proc.cost}
-                                status={proc.status as "available" | "coming_soon"}
-                                icon={proc.icon || "FileText"}
-                            />
-                        ))}
-                    </div>
-                )}
+                ) : (() => {
+                    const isFiltered = !!searchTerm || !!selectedCategory || !!selectedInstitution;
+                    const priorityProcs = filteredProcedures?.filter(p => p.isPriority) ?? [];
+                    const otherProcs = filteredProcedures?.filter(p => !p.isPriority) ?? [];
+
+                    const ProcGrid = ({ procs }: { procs: Procedure[] }) => (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
+                            {procs.map((proc) => (
+                                <ProcedureCard
+                                    key={proc.id}
+                                    id={proc.id}
+                                    title={proc.title}
+                                    slug={proc.slug}
+                                    description={proc.description}
+                                    category={proc.category}
+                                    institution={proc.institution}
+                                    estimatedDays={proc.estimatedDays}
+                                    cost={proc.cost}
+                                    status={proc.status as "available" | "coming_soon"}
+                                    icon={proc.icon || "FileText"}
+                                />
+                            ))}
+                        </div>
+                    );
+
+                    if (isFiltered) {
+                        return <ProcGrid procs={filteredProcedures ?? []} />;
+                    }
+
+                    return (
+                        <div className="space-y-14">
+                            {priorityProcs.length > 0 && (
+                                <div className="space-y-6">
+                                    <div className="flex items-center gap-3">
+                                        <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                                            <Star className="h-4 w-4 text-primary fill-primary/30" />
+                                        </div>
+                                        <div>
+                                            <h2 className="text-lg font-black text-slate-900">Démarches prioritaires</h2>
+                                            <p className="text-xs text-slate-500 font-medium">Les procédures les plus demandées par les citoyens</p>
+                                        </div>
+                                    </div>
+                                    <ProcGrid procs={priorityProcs} />
+                                </div>
+                            )}
+                            {otherProcs.length > 0 && (
+                                <div className="space-y-6">
+                                    <div className="flex items-center gap-3">
+                                        <div className="h-8 w-8 rounded-lg bg-slate-100 flex items-center justify-center">
+                                            <Building2 className="h-4 w-4 text-slate-500" />
+                                        </div>
+                                        <div>
+                                            <h2 className="text-lg font-black text-slate-900">Autres démarches</h2>
+                                            <p className="text-xs text-slate-500 font-medium">Toutes les procédures administratives disponibles</p>
+                                        </div>
+                                    </div>
+                                    <ProcGrid procs={otherProcs} />
+                                </div>
+                            )}
+                        </div>
+                    );
+                })()}
             </div>
         </div>
     );

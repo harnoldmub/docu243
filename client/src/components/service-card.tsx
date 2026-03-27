@@ -48,10 +48,8 @@ export function ServiceCard({ service, onSelect }: ServiceCardProps) {
   const Icon = iconMap[service.icon] || iconMap.default;
   
   const formatPrice = (price: number) => {
-    return new Intl.NumberFormat("fr-CD", {
-      style: "decimal",
-      minimumFractionDigits: 0,
-    }).format(price) + " CDF";
+    if (price === 0) return "Gratuit";
+    return "$" + new Intl.NumberFormat("en-US").format(price);
   };
 
   return (

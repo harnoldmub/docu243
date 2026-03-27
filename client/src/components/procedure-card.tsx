@@ -100,7 +100,7 @@ export function ProcedureCard({
                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Frais de dossier</span>
                         <div className="flex items-center gap-1.5 justify-end text-slate-900 font-bold text-sm">
                             <Coins className="h-3.5 w-3.5 text-amber-500" />
-                            {cost.toLocaleString("fr-FR")} CDF
+                            {cost === 0 ? "Gratuit" : `$${cost.toLocaleString("en-US")}`}
                         </div>
                     </div>
                 </div>
