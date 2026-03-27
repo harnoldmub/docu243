@@ -30,7 +30,9 @@ import {
     Clock,
     FileText,
     Building2,
-    Lock
+    Lock,
+    Pencil,
+    RotateCcw
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -97,6 +99,22 @@ export default function ApplicationDetail() {
             queryClient.invalidateQueries({ queryKey: [`/api/applications/${params?.id}`] });
             queryClient.invalidateQueries({ queryKey: ["/api/admin/applications"] });
             toast({ title: "Document mis à jour", description: "La décision de contrôle a bien été enregistrée." });
+        },
+    });
+
+    const retractMutation = useMutation({
+        mutationFn: async () => {
+            const res = await apiRequest("POST", `/api/applications/${params?.id}/retract`);
+            return await res.json();
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: [`/api/applications/${params?.id}`] });
+            queryClient.invalidateQueries({ queryKey: ["/api/applications/me"] });
+            toast({ title: "Dossier retiré", description: "Vous pouvez maintenant modifier et soumettre à nouveau votre dossier." });
+            setActiveStep(0);
+        },
+        onError: (error: Error) => {
+            toast({ title: "Erreur", description: error.message, variant: "destructive" });
         },
     });
 
@@ -185,6 +203,19 @@ export default function ApplicationDetail() {
                     <div className="lg:col-span-2 space-y-8">
                         {!isAgentReviewer && isDraft ? (
                             <>
+                                {/* Banner when agent requested corrections */}
+                                {dossier.status === "pending_user_action" && (
+                                    <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                                        <AlertCircle className="h-5 w-5 text-amber-500 mt-0.5 shrink-0" />
+                                        <div>
+                                            <p className="text-sm font-bold text-amber-800">Action requise — Correction demandée</p>
+                                            <p className="mt-1 text-xs text-amber-700 leading-relaxed">
+                                                Un agent a examiné votre dossier et demande des corrections. Veuillez vérifier vos informations et vos documents, puis soumettre à nouveau.
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+
                                 {activeStep === 0 && (
                                     <Card className="border-none shadow-sm rounded-3xl overflow-hidden bg-white">
                                         <CardHeader className="p-8 pb-4">
@@ -495,6 +526,27 @@ export default function ApplicationDetail() {
                                                                     "Veuillez vérifier les instructions transmises par l'agent ci-dessous."}
                                         </p>
                                     </div>
+
+                                    {/* Citizen retract action — only before agent takes over */}
+                                    {!isAgentReviewer && dossier.status === "submitted" && (
+                                        <div className="pt-2">
+                                            <Button
+                                                variant="outline"
+                                                className="rounded-2xl border-slate-200 bg-white text-slate-700 hover:bg-slate-50 gap-2 font-bold"
+                                                onClick={() => retractMutation.mutate()}
+                                                disabled={retractMutation.isPending}
+                                                data-testid="button-retract-dossier"
+                                            >
+                                                {retractMutation.isPending ? (
+                                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                                ) : (
+                                                    <RotateCcw className="h-4 w-4" />
+                                                )}
+                                                Retirer et modifier mon dossier
+                                            </Button>
+                                            <p className="mt-2 text-xs text-slate-400">Cette action n'est possible que tant qu'aucun agent n'a commencé l'instruction.</p>
+                                        </div>
+                                    )}
                                 </Card>
 
                                 {/* Tracking Documents Summary */}

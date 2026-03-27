@@ -288,6 +288,35 @@ export async function registerRoutes(
     res.json({ success: true });
   });
 
+  // Citizen retracts a submitted dossier (only allowed while status is "submitted")
+  app.post("/api/applications/:id/retract", requireAuth, async (req: Request, res: Response) => {
+    const dossier = await storage.getApplication(req.params.id);
+    if (!dossier) return res.status(404).json({ error: "Dossier introuvable" });
+    if (dossier.userId !== req.session.userId) return res.status(403).json({ error: "Accès refusé" });
+    if (dossier.status !== "submitted") {
+      return res.status(409).json({ error: "Le dossier ne peut être retiré que lorsqu'il est en attente de traitement." });
+    }
+
+    await storage.updateApplication(req.params.id, { status: "draft" });
+    await storage.createActivityLog({
+      actorId: req.session.userId!,
+      action: "retraction",
+      entityType: "application",
+      entityId: req.params.id,
+      oldValue: "submitted",
+      newValue: "draft",
+    });
+    await storage.createNotification({
+      userId: dossier.userId,
+      type: "application_update",
+      title: "Dossier retiré",
+      message: `Votre dossier ${dossier.reference} a été retiré et repassé en mode brouillon. Vous pouvez le modifier et le soumettre à nouveau.`,
+      metadata: { applicationId: dossier.id },
+    });
+
+    res.json({ success: true });
+  });
+
   // ============ DOCUMENTS ============
 
   app.post("/api/applications/:id/documents", requireAuth, async (req: Request, res: Response) => {
