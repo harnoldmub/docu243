@@ -45,12 +45,9 @@ export default function Home() {
     queryKey: ["/api/procedures"],
   });
 
-  const popularProcedures = [...procedures]
-    .sort((a, b) => {
-      if (a.status === b.status) return a.estimatedDays - b.estimatedDays;
-      return a.status === "available" ? -1 : 1;
-    })
-    .slice(0, 3);
+  const popularProcedures = procedures
+    .filter(p => p.isPriority && p.status === "available")
+    .sort((a, b) => (a.sortOrder ?? 99) - (b.sortOrder ?? 99));
 
   const handleTrackingSubmit = (e: React.FormEvent) => {
     e.preventDefault();
