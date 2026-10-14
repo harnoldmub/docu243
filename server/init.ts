@@ -1,5 +1,6 @@
 import { pool } from "./db";
 import { seedCatalog } from "./seed";
+import { migrateSchema, migrateContent } from "./migrate";
 
 function log(msg: string) {
   const t = new Date().toLocaleTimeString("fr-FR");
@@ -149,23 +150,24 @@ async function hasProcedures(): Promise<boolean> {
 
 export async function initializeDatabase() {
   try {
-    log("Checking database schema...", "init");
+    log("Checking database schema...");
     await ensureTablesExist();
-    log("Database tables ready.", "init");
+    await migrateSchema();
+    log("Database tables ready.");
 
     const seeded = await hasProcedures();
     if (!seeded) {
-      log("Seeding initial catalog and admin user...", "init");
+      log("Seeding initial catalog and admin user...");
       const result = await seedCatalog();
       log(
         `Catalog seeded: ${result.total} procedures (${result.available} available, ${result.comingSoon} coming soon).`,
-        "init"
       );
     } else {
-      log("Catalog already seeded, skipping.", "init");
+      log("Catalog already seeded, skipping.");
     }
+    await migrateContent();
   } catch (err) {
-    log(`Database initialization error: ${(err as Error).message}`, "init");
+    log(`Database initialization error: ${(err as Error).message}`);
     throw err;
   }
 }

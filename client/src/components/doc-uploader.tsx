@@ -1,190 +1,178 @@
-import React, { useCallback, useState } from "react";
-import { useDropzone } from "react-dropzone";
-import {
-    FileUp,
-    FileText,
-    CheckCircle2,
-    AlertCircle,
-    X,
-    Loader2,
-    Eye,
-    RotateCcw
-} from "lucide-react";
+import { useCallback, useEffect, useId, useState } from "react";
+import { useDropzone, type FileRejection } from "react-dropzone";
+import { AlertCircle, Eye, FileText, Loader2, RefreshCw, Upload } from "lucide-react";
+import { DocumentStatusBadge } from "@/components/status-badge";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { DocumentStatusBadge } from "./status-badge";
 
-interface DocUploaderProps {
-    label: string;
-    description?: string;
-    required?: boolean;
-    status?: string;
-    rejectionReason?: string;
-    onUpload: (file: File) => Promise<void>;
-    fileUrl?: string;
-    fileName?: string;
-    onRemove?: () => void;
-    className?: string;
-}
+const MIME: Record<string, string[]> = {
+  pdf: ["application/pdf"],
+  jpg: ["image/jpeg"],
+  jpeg: ["image/jpeg"],
+  png: ["image/png"],
+  webp: ["image/webp"],
+};
+const SERVER_MAX_MB = 10;
+
+type Props = {
+  label: string;
+  description?: string;
+  required?: boolean;
+  acceptedFormats?: string[];
+  maxSizeMb?: number;
+  status?: string;
+  rejectionReason?: string | null;
+  fileUrl?: string;
+  fileName?: string;
+  mimeType?: string;
+  disabled?: boolean;
+  onUpload: (file: File) => Promise<void>;
+};
 
 export function DocUploader({
-    label,
-    description,
-    required = true,
-    status,
-    rejectionReason,
-    onUpload,
-    fileUrl,
-    fileName,
-    onRemove,
-    className,
-}: DocUploaderProps) {
-    const [uploading, setUploading] = useState(false);
-    const [progress, setProgress] = useState(0);
-    const [uploadError, setUploadError] = useState<string | null>(null);
+  label,
+  description,
+  required = true,
+  acceptedFormats = ["pdf", "jpg", "png"],
+  maxSizeMb = 5,
+  status,
+  rejectionReason,
+  fileUrl,
+  fileName,
+  mimeType,
+  disabled,
+  onUpload,
+}: Props) {
+  const id = useId();
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const maxMb = Math.min(maxSizeMb, SERVER_MAX_MB);
+  const formats = acceptedFormats.map((f) => f.toLowerCase());
+  const accept = Object.fromEntries(
+    formats.flatMap((f) => (MIME[f] ?? []).map((m) => [m, [`.${f}`]])),
+  ) as Record<string, string[]>;
+  const needsReplacement = status === "rejected" || status === "replacement_requested";
 
-    const onDrop = useCallback(async (acceptedFiles: File[]) => {
-        if (acceptedFiles.length > 0) {
-            setUploading(true);
-            setUploadError(null);
-            setProgress(10);
-            try {
-                const interval = setInterval(() => {
-                    setProgress((prev) => (prev >= 90 ? 90 : prev + 10));
-                }, 150);
+  useEffect(() => () => {
+    if (preview) URL.revokeObjectURL(preview);
+  }, [preview]);
 
-                await onUpload(acceptedFiles[0]);
+  const onDrop = useCallback(
+    async (files: File[], rejections: FileRejection[]) => {
+      setError(null);
+      if (rejections.length) {
+        const code = rejections[0].errors[0]?.code;
+        setError(
+          code === "file-too-large"
+            ? `Ce fichier dépasse ${maxMb} Mo. Réduisez sa taille ou photographiez le document de nouveau.`
+            : `Format non accepté. Formats possibles : ${formats.map((f) => f.toUpperCase()).join(", ")}.`,
+        );
+        return;
+      }
+      const file = files[0];
+      if (!file) return;
+      setUploading(true);
+      try {
+        await onUpload(file);
+        setPreview(file.type.startsWith("image/") ? URL.createObjectURL(file) : null);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "L'envoi a échoué. Réessayez.");
+      } finally {
+        setUploading(false);
+      }
+    },
+    [onUpload, maxMb, formats],
+  );
 
-                clearInterval(interval);
-                setProgress(100);
-            } catch (error: any) {
-                console.error("Upload failed:", error);
-                setUploadError(error?.message || "Erreur lors de l'envoi du fichier.");
-            } finally {
-                setTimeout(() => setUploading(false), 500);
-            }
-        }
-    }, [onUpload]);
+  const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
+    onDrop,
+    multiple: false,
+    accept,
+    maxSize: maxMb * 1024 * 1024,
+    disabled: disabled || uploading,
+    noClick: !!fileUrl,
+    // The visible button is the keyboard entry point; the drop zone itself is not a tab stop.
+    noKeyboard: true,
+  });
 
-    const { getRootProps, getInputProps, isDragActive } = useDropzone({
-        onDrop,
-        multiple: false,
-        disabled: !!fileUrl || uploading,
-    });
+  const isImage = (mimeType ?? "").startsWith("image/");
+  const thumb = preview ?? (isImage && fileUrl ? fileUrl : null);
 
-    return (
-        <div className={cn("space-y-3", className)}>
-            <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                    <label className="text-sm font-semibold flex items-center gap-1.5">
-                        {label}
-                        {required && <span className="text-rose-500">*</span>}
-                        {status && <DocumentStatusBadge status={status} />}
-                    </label>
-                    {description && (
-                        <p className="text-xs text-slate-500">{description}</p>
-                    )}
-                </div>
-            </div>
-
-            {!fileUrl && !uploading && (
-                <div
-                    {...getRootProps()}
-                    className={cn(
-                        "border-2 border-dashed rounded-xl p-8 transition-all duration-200 cursor-pointer text-center",
-                        isDragActive
-                            ? "border-primary bg-primary/5 scale-[1.01]"
-                            : "border-slate-200 hover:border-slate-300 hover:bg-slate-50"
-                    )}
-                >
-                    <input {...getInputProps()} />
-                    <div className="flex flex-col items-center gap-2">
-                        <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
-                            <FileUp className="h-5 w-5" />
-                        </div>
-                        <div className="text-sm">
-                            <span className="text-primary font-semibold">Cliquez pour télécharger</span>
-                            <span className="text-slate-500"> ou glissez-déposez</span>
-                        </div>
-                        <p className="text-[10px] text-slate-400 uppercase tracking-wider font-medium">
-                            PDF, JPG, PNG (Max 5Mo)
-                        </p>
-                    </div>
-                </div>
-            )}
-
-            {uploading && (
-                <div className="border border-slate-100 rounded-xl p-4 bg-slate-50 space-y-3">
-                    <div className="flex items-center gap-3">
-                        <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                        <div className="flex-1 space-y-1">
-                            <div className="text-xs font-semibold">Téléchargement en cours...</div>
-                            <Progress value={progress} className="h-1.5" />
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {fileUrl && !uploading && (
-                <div
-                    className={cn(
-                        "border rounded-xl p-4 flex items-center gap-4 transition-all",
-                        status === "rejected" ? "border-rose-200 bg-rose-50/30" : "border-slate-100 bg-white"
-                    )}
-                >
-                    <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-                        <FileText className="h-6 w-6" />
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                        <div className="text-sm font-semibold truncate">
-                            {fileName || "document_telecharge.pdf"}
-                        </div>
-                        <div className="flex items-center gap-2 mt-1">
-                            <a
-                                href={fileUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="text-[11px] font-medium text-primary hover:underline flex items-center gap-1"
-                            >
-                                <Eye className="h-3 w-3" /> Voir
-                            </a>
-                            {onRemove && (status === "draft" || status === "rejected" || status === "submitted") && (
-                                <button
-                                    onClick={onRemove}
-                                    className="text-[11px] font-medium text-rose-500 hover:underline flex items-center gap-1"
-                                >
-                                    <RotateCcw className="h-3 w-3" /> Remplacer
-                                </button>
-                            )}
-                        </div>
-                    </div>
-
-                    {status === "approved" && (
-                        <div className="h-8 w-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600">
-                            <CheckCircle2 className="h-5 w-5" />
-                        </div>
-                    )}
-                </div>
-            )}
-
-            {uploadError && (
-                <div className="flex gap-2 p-3 rounded-lg bg-rose-50 text-rose-700 border border-rose-100">
-                    <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
-                    <div className="text-xs font-medium">{uploadError}</div>
-                </div>
-            )}
-
-            {status === "rejected" && rejectionReason && (
-                <div className="flex gap-2 p-3 rounded-lg bg-rose-50 text-rose-700 border border-rose-100">
-                    <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
-                    <div className="text-xs">
-                        <span className="font-bold">Motif du rejet : </span>
-                        {rejectionReason}
-                    </div>
-                </div>
-            )}
+  return (
+    <div className={cn("rounded-2xl border p-4 sm:p-5", needsReplacement ? "border-[var(--st-warning)]/50 bg-[var(--st-warning-bg)]/40" : "border-brand-line bg-white")}>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p id={`${id}-label`} className="font-semibold text-brand-ink">
+            {label}
+            <span className="ml-2 text-sm font-normal text-brand-ink-2">{required ? "Obligatoire" : "Facultative"}</span>
+          </p>
+          {description && <p className="text-[0.9375rem] text-brand-ink-2">{description}</p>}
+          <p id={`${id}-rules`} className="mt-1 text-sm text-brand-ink-2">
+            {formats.map((f) => f.toUpperCase()).join(", ")} · {maxMb} Mo maximum
+          </p>
         </div>
-    );
+        {status && <DocumentStatusBadge status={status} />}
+      </div>
+
+      {needsReplacement && rejectionReason && (
+        <p className="mt-3 flex gap-2 rounded-xl bg-white p-3 text-[0.9375rem] text-brand-ink">
+          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-[var(--st-warning)]" aria-hidden="true" />
+          <span>
+            <span className="font-semibold">Motif : </span>
+            {rejectionReason}
+          </span>
+        </p>
+      )}
+
+      <div {...getRootProps()} className="mt-4" aria-labelledby={`${id}-label`} aria-describedby={`${id}-rules`}>
+        <input {...getInputProps()} />
+        {uploading ? (
+          <div className="flex min-h-[72px] items-center gap-3 rounded-xl bg-brand-mist px-4" role="status">
+            <Loader2 className="h-5 w-5 animate-spin text-brand-royal" aria-hidden="true" />
+            <span className="font-semibold text-brand-ink">Envoi en cours…</span>
+          </div>
+        ) : fileUrl ? (
+          <div className="flex flex-wrap items-center gap-4 rounded-xl bg-brand-mist p-3">
+            <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white">
+              {thumb ? <img src={thumb} alt="" className="h-full w-full object-cover" /> : <FileText className="h-7 w-7 text-brand-royal" aria-hidden="true" />}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-semibold text-brand-ink">{fileName ?? "Document envoyé"}</p>
+              <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-9 items-center gap-1.5 text-sm font-semibold text-brand-royal underline-offset-4 hover:underline">
+                <Eye className="h-4 w-4" aria-hidden="true" /> Ouvrir <span className="sr-only">{label} (nouvel onglet)</span>
+              </a>
+            </div>
+            {!disabled && (
+              <button
+                type="button"
+                onClick={open}
+                className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[hsl(var(--input))] bg-white px-4 text-sm font-semibold text-brand-ink hover:border-brand-ink"
+              >
+                <RefreshCw className="h-4 w-4" aria-hidden="true" /> Remplacer
+              </button>
+            )}
+          </div>
+        ) : (
+          <button
+            type="button"
+            disabled={disabled}
+            className={cn(
+              "flex min-h-[88px] w-full flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed px-4 py-4 text-center transition-colors duration-150",
+              isDragActive ? "border-brand-royal bg-brand-sky" : "border-[#b9c3d6] hover:border-brand-royal hover:bg-brand-mist",
+            )}
+          >
+            <Upload className="h-6 w-6 text-brand-royal" aria-hidden="true" />
+            <span className="font-semibold text-brand-ink">Choisir un fichier ou prendre une photo</span>
+            <span className="hidden text-sm text-brand-ink-2 sm:block">ou glissez-le ici</span>
+          </button>
+        )}
+      </div>
+
+      {error && (
+        <p role="alert" className="mt-3 flex items-start gap-2 text-[0.9375rem] font-semibold text-[var(--st-danger)]">
+          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" /> {error}
+        </p>
+      )}
+    </div>
+  );
 }

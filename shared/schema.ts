@@ -27,6 +27,34 @@ export const insertUserSchema = createInsertSchema(users).omit({
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 
+// --- Procedure guide (editorial content shown on the public page) ---
+export type ChecklistKind = "upload" | "original" | "prerequisite" | "download" | "generated" | "payment";
+
+export type ProcedureGuide = {
+  keywords?: string[];
+  territory?: string;
+  outputDocument?: string;
+  conditions?: string[];
+  prerequisites?: Array<{ label: string; question?: string; description?: string; procedureSlug?: string; url?: string }>;
+  steps?: Array<{ label: string; description?: string; where: "online" | "physical" | "external" }>;
+  questions?: Array<{ id: string; label: string; options: Array<{ value: string; label: string }> }>;
+  checklist?: Array<{
+    id: string;
+    label: string;
+    description?: string;
+    kind: ChecklistKind;
+    requirement: "required" | "conditional";
+    when?: Record<string, string[]>;
+    alternatives?: string[];
+  }>;
+  feeNote?: string;
+  processingNote?: string;
+  appointmentNote?: string;
+  sources?: Array<{ label: string; url: string; administration: string; consultedAt: string }>;
+  missingInfo?: string[];
+  contradictory?: boolean;
+};
+
 // --- Procedures (Definitions) ---
 export const procedures = pgTable("procedures", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -36,8 +64,17 @@ export const procedures = pgTable("procedures", {
   category: text("category").notNull(), // civil, identity, property, etc.
   institution: text("institution").notNull(),
   estimatedDays: integer("estimated_days").notNull(),
-  cost: integer("cost").notNull(), // in USD
-  status: text("status").notNull().default("available"), // available, coming_soon
+  // Raw amount as entered by admins. The unit is given by `currency`
+  // (legacy rows were entered in a field labelled "Coût (CDF)").
+  cost: integer("cost").notNull(),
+  currency: text("currency"), // CDF, USD — null when unknown
+  feeStatus: text("fee_status").notNull().default("unconfirmed"), // confirmed, variable, unconfirmed
+  status: text("status").notNull().default("available"), // available, coming_soon (online dossier in MesDémarches)
+  channel: text("channel").notNull().default("docu243"), // docu243, external, info
+  externalUrl: text("external_url"),
+  editorialStatus: text("editorial_status").notNull().default("draft"), // draft, to_verify, validated, published, archived
+  verifiedAt: timestamp("verified_at"), // internal validation date
+  guide: jsonb("guide").$type<ProcedureGuide>(),
   isActive: boolean("is_active").notNull().default(true),
   icon: text("icon").notNull().default("FileText"),
   isPriority: boolean("is_priority").notNull().default(false),
@@ -96,6 +133,8 @@ export const applications = pgTable("applications", {
   userId: varchar("user_id").notNull(),
   procedureId: varchar("procedure_id").notNull(),
   status: text("status").notNull().default("draft"), // draft, submitted, received, under_review, pending_user_action, pending_payment, approved, rejected, ready, delivered
+  statusNote: text("status_note"), // last message from the agent (e.g. correction reason)
+  requirementsSnapshot: jsonb("requirements_snapshot"), // fields and documents applicable when submitted
   submittedAt: timestamp("submitted_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),

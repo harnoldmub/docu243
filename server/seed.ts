@@ -35,7 +35,7 @@ type SeedProcedure = {
   }>;
 };
 
-const catalog: SeedProcedure[] = [
+export const catalog: SeedProcedure[] = [
   {
     title: "Acte de Naissance",
     slug: "acte-de-naissance",
@@ -679,6 +679,7 @@ export async function seedCatalog() {
         status: item.status,
         isActive: true,
         icon: item.icon,
+        editorialStatus: "published",
         updatedAt: new Date(),
       })
       .onConflictDoUpdate({

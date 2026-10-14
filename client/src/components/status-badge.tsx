@@ -1,175 +1,145 @@
-import { Badge } from "@/components/ui/badge";
 import {
-  Clock,
-  CheckCircle,
-  AlertCircle,
-  XCircle,
-  CreditCard,
-  Loader2,
-  FileCheck,
-  Truck,
-  FileText,
+  AlertTriangle,
+  CheckCircle2,
+  CircleDashed,
+  Clock3,
+  FileCheck2,
+  FilePen,
+  Inbox,
+  PackageCheck,
+  RotateCcw,
   Search,
-  UserCheck,
-  RotateCcw
+  Wallet,
+  XCircle,
+  type LucideIcon,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-type ApplicationStatus =
-  | "draft"
-  | "submitted"
-  | "received"
-  | "under_review"
-  | "pending_user_action"
-  | "pending_payment"
-  | "approved"
-  | "rejected"
-  | "ready"
-  | "delivered";
+export type Tone = "neutral" | "info" | "warning" | "success" | "danger";
 
-interface StatusBadgeProps {
-  status: ApplicationStatus;
-  size?: "sm" | "default";
-}
+const toneClass: Record<Tone, string> = {
+  neutral: "bg-[var(--st-neutral-bg)] text-[var(--st-neutral)]",
+  info: "bg-[var(--st-info-bg)] text-[var(--st-info)]",
+  warning: "bg-[var(--st-warning-bg)] text-[var(--st-warning)]",
+  success: "bg-[var(--st-success-bg)] text-[var(--st-success)]",
+  danger: "bg-[var(--st-danger-bg)] text-[var(--st-danger)]",
+};
 
-const statusConfig: Record<ApplicationStatus, {
-  label: string;
-  icon: any;
-  className: string;
-}> = {
+type StatusInfo = { label: string; icon: LucideIcon; tone: Tone; next: string; group: "action" | "progress" | "done" };
+
+export const APPLICATION_STATUS: Record<string, StatusInfo> = {
   draft: {
     label: "Brouillon",
-    icon: FileText,
-    className: "bg-slate-200 text-slate-700 hover:bg-slate-200",
+    icon: FilePen,
+    tone: "neutral",
+    group: "action",
+    next: "Complétez les informations et les pièces, puis transmettez votre dossier.",
   },
   submitted: {
-    label: "Soumis",
-    icon: Clock,
-    className: "bg-blue-100 text-blue-700 hover:bg-blue-100",
+    label: "Transmis",
+    icon: Inbox,
+    tone: "info",
+    group: "progress",
+    next: "Votre dossier attend la prise en charge par un agent. Vous pouvez encore le retirer pour le modifier.",
   },
   received: {
     label: "Reçu",
-    icon: CheckCircle,
-    className: "bg-blue-100 text-blue-700 hover:bg-blue-100",
+    icon: Inbox,
+    tone: "info",
+    group: "progress",
+    next: "L'administration a reçu votre dossier. Aucune action de votre part pour le moment.",
   },
   under_review: {
-    label: "En examen",
+    label: "En cours d'examen",
     icon: Search,
-    className: "bg-indigo-100 text-indigo-700 hover:bg-indigo-100",
+    tone: "info",
+    group: "progress",
+    next: "Un agent examine votre dossier. Aucune action de votre part pour le moment.",
   },
   pending_user_action: {
-    label: "Action requise",
-    icon: AlertCircle,
-    className: "bg-amber-100 text-amber-700 animate-pulse hover:bg-amber-100",
+    label: "Correction demandée",
+    icon: AlertTriangle,
+    tone: "warning",
+    group: "action",
+    next: "Corrigez les éléments demandés par l'agent, puis transmettez de nouveau votre dossier.",
   },
   pending_payment: {
     label: "Paiement requis",
-    icon: CreditCard,
-    className: "bg-amber-100 text-amber-700 hover:bg-amber-100",
+    icon: Wallet,
+    tone: "warning",
+    group: "action",
+    next: "Un paiement est demandé par l'administration. MesDémarches n'encaisse aucun paiement : suivez les instructions reçues.",
   },
   approved: {
     label: "Approuvé",
-    icon: UserCheck,
-    className: "bg-emerald-100 text-emerald-700 hover:bg-emerald-100",
+    icon: FileCheck2,
+    tone: "success",
+    group: "progress",
+    next: "Votre dossier est validé. Le document est en préparation.",
   },
   rejected: {
-    label: "Rejeté",
+    label: "Refusé",
     icon: XCircle,
-    className: "bg-rose-100 text-rose-700 hover:bg-rose-100",
+    tone: "danger",
+    group: "done",
+    next: "Votre demande a été refusée. Consultez le message de l'agent ci-dessous.",
   },
   ready: {
-    label: "Prêt",
-    icon: CheckCircle,
-    className: "bg-emerald-500 text-white hover:bg-emerald-500",
+    label: "Prêt à retirer",
+    icon: PackageCheck,
+    tone: "success",
+    group: "action",
+    next: "Votre document est prêt. Présentez-vous avec votre pièce d'identité pour le retirer.",
   },
   delivered: {
     label: "Délivré",
-    icon: Truck,
-    className: "bg-slate-800 text-white hover:bg-slate-800",
+    icon: CheckCircle2,
+    tone: "success",
+    group: "done",
+    next: "Le document vous a été remis. Ce dossier est terminé.",
   },
 };
 
-export function StatusBadge({ status, size = "default" }: StatusBadgeProps) {
-  const config = statusConfig[status] || { label: status, icon: Clock, className: "" };
-  const Icon = config.icon;
+export function statusInfo(status: string): StatusInfo {
+  return APPLICATION_STATUS[status] ?? { label: status, icon: CircleDashed, tone: "neutral", group: "progress", next: "" };
+}
 
+export function Pill({ tone, icon: Icon, children, className }: { tone: Tone; icon?: LucideIcon; children: React.ReactNode; className?: string }) {
   return (
-    <Badge
-      variant="outline"
-      className={`${config.className} border-none font-medium gap-1.5 ${size === "sm" ? "text-[10px] px-1.5 py-0" : "text-xs px-2.5 py-0.5"}`}
-      data-testid={`status-badge-${status}`}
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-[0.8125rem] font-semibold leading-none",
+        toneClass[tone],
+        className,
+      )}
     >
-      <Icon className={`${size === "sm" ? "h-3 w-3" : "h-3.5 w-3.5"} ${["under_review", "submitted"].includes(status) ? "animate-pulse" : ""}`} />
-      {config.label}
-    </Badge>
+      {Icon && <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />}
+      {children}
+    </span>
   );
 }
+
+export function StatusBadge({ status, className }: { status: string; size?: "sm" | "default"; className?: string }) {
+  const info = statusInfo(status);
+  return (
+    <Pill tone={info.tone} icon={info.icon} className={className}>
+      <span data-testid={`status-badge-${status}`}>{info.label}</span>
+    </Pill>
+  );
+}
+
+const DOC_STATUS: Record<string, { label: string; tone: Tone; icon: LucideIcon }> = {
+  submitted: { label: "Envoyée", tone: "info", icon: Clock3 },
+  approved: { label: "Validée", tone: "success", icon: CheckCircle2 },
+  rejected: { label: "Refusée", tone: "danger", icon: XCircle },
+  replacement_requested: { label: "À remplacer", tone: "warning", icon: RotateCcw },
+};
 
 export function DocumentStatusBadge({ status }: { status: string }) {
-  const configs: Record<string, { label: string; className: string; icon: any }> = {
-    submitted: {
-      label: "Soumis",
-      className: "bg-blue-50 text-blue-600 border-blue-100",
-      icon: Clock,
-    },
-    approved: {
-      label: "Validé",
-      className: "bg-emerald-50 text-emerald-600 border-emerald-100",
-      icon: CheckCircle,
-    },
-    rejected: {
-      label: "Rejeté",
-      className: "bg-rose-50 text-rose-600 border-rose-100",
-      icon: XCircle,
-    },
-    replacement_requested: {
-      label: "À remplacer",
-      className: "bg-amber-50 text-amber-600 border-amber-100",
-      icon: RotateCcw,
-    },
-  };
-
-  const config = configs[status] || configs.submitted;
-  const Icon = config.icon;
-
+  const c = DOC_STATUS[status] ?? DOC_STATUS.submitted;
   return (
-    <Badge variant="outline" className={`${config.className} gap-1 font-normal text-[10px] px-1.5 py-0`}>
-      <Icon className="h-2.5 w-2.5" />
-      {config.label}
-    </Badge>
-  );
-}
-
-export function PaymentStatusBadge({ status }: { status: string }) {
-  const configs: Record<string, { label: string; className: string; icon: any }> = {
-    pending: {
-      label: "En attente",
-      className: "bg-amber-50 text-amber-600 border-amber-100",
-      icon: Loader2,
-    },
-    succeeded: {
-      label: "Payé",
-      className: "bg-emerald-50 text-emerald-600 border-emerald-100",
-      icon: CheckCircle,
-    },
-    failed: {
-      label: "Échec",
-      className: "bg-rose-50 text-rose-600 border-rose-100",
-      icon: AlertCircle,
-    },
-    refunded: {
-      label: "Remboursé",
-      className: "bg-slate-50 text-slate-600 border-slate-100",
-      icon: RotateCcw,
-    },
-  };
-
-  const config = configs[status] || { label: status, className: "", icon: Clock };
-  const Icon = config.icon;
-
-  return (
-    <Badge variant="outline" className={`${config.className} gap-1.5 text-xs font-medium`}>
-      <Icon className={`h-3.5 w-3.5 ${status === "pending" ? "animate-spin" : ""}`} />
-      {config.label}
-    </Badge>
+    <Pill tone={c.tone} icon={c.icon}>
+      {c.label}
+    </Pill>
   );
 }

@@ -1,323 +1,475 @@
 import { Link } from "wouter";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import {
-  Search,
-  FileText,
-  CreditCard,
-  Shield,
-  Clock,
-  CheckCircle,
-  ChevronRight,
-  Users,
-  Building2,
-  Heart,
-  GraduationCap,
   ArrowRight,
-  Car,
-  Home as HomeIcon,
-  Briefcase,
-  Smartphone,
-  ShieldCheck,
-  Globe,
-  Zap
+  Bell,
+  CheckCircle2,
+  FileSearch,
+  FileUp,
+  FolderOpen,
+  MapPin,
+  MonitorSmartphone,
+  RefreshCw,
+  Search,
 } from "lucide-react";
-import { useState } from "react";
-import { useLocation } from "wouter";
-import { useQuery } from "@tanstack/react-query";
-import type { Procedure } from "@shared/schema";
-import { ProcedureCard } from "@/components/procedure-card";
+import { useAuth } from "@/hooks/use-auth";
+import { useProcedures } from "@/hooks/use-procedures";
+import { useReveal } from "@/hooks/use-reveal";
+import { Button } from "@/components/ui/button";
+import { Picture } from "@/components/picture";
+import { SearchCombobox } from "@/components/search-combobox";
+import { ProcedureCard, ProcedureCardSkeleton } from "@/components/procedure-card";
+import { ErrorState, EmptyState } from "@/components/states";
+import { StatusBadge } from "@/components/status-badge";
+import { FaqAccordion } from "@/components/faq";
+import { GOALS } from "@/lib/goals";
+import { authHref } from "@/lib/auth-links";
 import { cn } from "@/lib/utils";
 
-const stats = [
-  { value: "5M+", label: "Citoyens Enregistrés" },
-  { value: "1.2M", label: "Dossiers Traités" },
-  { value: "26", label: "Provinces" },
-  { value: "100%", label: "Officiel" },
-];
-
 export default function Home() {
-  const [trackingCode, setTrackingCode] = useState("");
-  const [, setLocation] = useLocation();
-
-  const { data: procedures = [] } = useQuery<Procedure[]>({
-    queryKey: ["/api/procedures"],
-  });
-
-  const popularProcedures = procedures
-    .filter(p => p.isPriority && p.status === "available")
-    .sort((a, b) => (a.sortOrder ?? 99) - (b.sortOrder ?? 99));
-
-  const handleTrackingSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (trackingCode.trim()) {
-      // For now redirect to catalogue or dashboard since tracking code is simplified
-      setLocation(`/catalogue?q=${encodeURIComponent(trackingCode.trim())}`);
-    }
-  };
+  useReveal();
+  const { user } = useAuth();
+  const trackHref = user ? "/dashboard" : authHref("login", "/dashboard");
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* Hero Section */}
-      <section className="relative overflow-hidden bg-slate-900 pt-20 pb-32 md:pt-32 md:pb-48">
-        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10" />
-        <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/2 w-[800px] h-[800px] bg-primary/20 rounded-full blur-[120px]" />
+    <>
+      <Hero trackHref={trackHref} />
+      <CommonProcedures />
+      <Goals />
+      <HowItWorks />
+      <HumanSection />
+      <CitizenSpacePreview />
+      <FaqSection />
+      <FinalCta />
+    </>
+  );
+}
 
-        <div className="relative mx-auto max-w-7xl px-4 text-center lg:text-left">
-          <div className="grid lg:grid-cols-12 gap-16 items-center">
-            <div className="lg:col-span-7 space-y-8">
-              <div className="inline-flex items-center gap-2 rounded-full bg-primary/20 border border-primary/30 px-4 py-1.5 text-xs font-bold text-primary tracking-widest uppercase backdrop-blur animate-fade-in">
-                <ShieldCheck className="h-4 w-4" />
-                <span>Plateforme Nationale Officielle</span>
-              </div>
+/* ------------------------------------------------------------------ */
 
-              <h1 className="text-5xl md:text-7xl font-black tracking-tight text-white leading-[1.1]">
-                L'Administration <span className="text-primary">Réinventée</span> pour vous.
-              </h1>
-
-              <p className="text-xl text-slate-400 max-w-2xl mx-auto lg:mx-0 leading-relaxed">
-                DOCU243 est votre guichet unique pour toutes vos démarches administratives en RDC.
-                Sûr, rapide et accessible partout.
-              </p>
-
-              <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4">
-                <Link href="/catalogue">
-                  <Button size="lg" className="h-16 px-10 rounded-2xl text-lg font-bold gap-3 shadow-xl shadow-primary/20 w-full sm:w-auto">
-                    Explorer le Catalogue
-                    <ArrowRight className="h-5 w-5" />
-                  </Button>
-                </Link>
-                <Link href="/auth">
-                  <Button size="lg" variant="outline" className="h-16 px-10 rounded-2xl text-lg font-bold border-white/10 text-white hover:bg-white/5 w-full sm:w-auto">
-                    Créer mon Espace
-                  </Button>
-                </Link>
-              </div>
-
-              <div className="pt-8 flex items-center justify-center lg:justify-start gap-8 opacity-50 grayscale transition-all hover:grayscale-0">
-                <img src="/flag.png" alt="RDC" className="h-6 w-auto object-contain" />
-                <span className="text-white font-bold text-sm tracking-widest">MINISTÈRE DU NUMÉRIQUE</span>
-              </div>
-            </div>
-
-            <div className="lg:col-span-5 hidden lg:block">
-              <div className="relative">
-                <div className="absolute inset-0 bg-primary/30 rounded-[40px] rotate-6 blur-2xl" />
-                <Card className="relative border-none bg-white/5 backdrop-blur-xl p-8 rounded-[40px] border border-white/10 shadow-2xl">
-                  <div className="space-y-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/80">Aperçu du service</div>
-                        <div className="mt-1 text-lg font-bold text-white">Suivi d'un dossier</div>
-                      </div>
-                      <div className="flex gap-1.5">
-                        <div className="h-2 w-2 rounded-full bg-red-400" />
-                        <div className="h-2 w-2 rounded-full bg-amber-400" />
-                        <div className="h-2 w-2 rounded-full bg-emerald-400" />
-                      </div>
-                    </div>
-                    <div className="rounded-3xl border border-primary/20 bg-primary/10 p-5 space-y-3">
-                      <div className="flex items-center justify-between gap-4">
-                        <div>
-                          <div className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/80">Référence</div>
-                          <div className="mt-1 text-base font-bold text-white">DOCU_8F42AC</div>
-                        </div>
-                        <div className="rounded-full bg-emerald-500/20 px-3 py-1 text-[11px] font-bold text-emerald-300">
-                          En cours
-                        </div>
-                      </div>
-                      <div className="text-sm text-slate-300 leading-relaxed">
-                        Votre demande avance étape par étape, avec notification dès qu’une action est attendue.
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4 pt-2">
-                      <div className="rounded-2xl border border-primary/15 bg-white/5 p-4">
-                        <div className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Étape</div>
-                        <div className="mt-2 text-sm font-bold text-white">Documents reçus</div>
-                        <div className="mt-1 text-xs text-slate-400">Pièces vérifiées en ligne</div>
-                      </div>
-                      <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                        <div className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Accès</div>
-                        <div className="mt-2 text-sm font-bold text-white">Mobile et web</div>
-                        <div className="mt-1 text-xs text-slate-400">Sans installation</div>
-                      </div>
-                    </div>
-                    <Link href="/dashboard">
-                      <Button className="w-full h-12 rounded-xl bg-primary hover:bg-primary/90">
-                        Consulter mes dossiers
-                      </Button>
-                    </Link>
-                  </div>
-                </Card>
-              </div>
-            </div>
+function Hero({ trackHref }: { trackHref: string }) {
+  return (
+    <section className="relative overflow-hidden bg-white" aria-labelledby="hero-title">
+      {/* Big blue field on the right, bleeding to the viewport edge on desktop. */}
+      <div className="absolute inset-y-0 right-0 hidden w-[44%] bg-brand-deep lg:block" aria-hidden="true" />
+      <div className="md-container relative grid items-center gap-8 pb-12 pt-0 lg:min-h-[calc(100svh-82px)] lg:grid-cols-[1.08fr_0.92fr] lg:gap-6 lg:py-16">
+        <div className="order-2 pt-4 lg:order-1 lg:pr-10 lg:pt-0">
+          <p className="hero-rise kicker inline-flex items-center gap-2.5 text-brand-ink" style={{ animationDelay: "60ms" }}>
+            <span className="h-3 w-3 rounded-[3px] bg-brand-red" aria-hidden="true" />
+            Vos démarches administratives en RDC
+          </p>
+          <h1 id="hero-title" className="hero-rise display-hero mt-5 text-brand-ink" style={{ animationDelay: "120ms" }}>
+            Vos démarches.
+            <br />
+            <span className="relative inline-block">
+              Votre avenir.
+              <span className="absolute -bottom-1 left-0 h-[0.14em] w-[62%] rounded-full bg-brand-yellow" aria-hidden="true" />
+            </span>
+          </h1>
+          <p className="hero-rise lead mt-7 max-w-[34rem] text-brand-ink-2" style={{ animationDelay: "200ms" }}>
+            Trouvez votre démarche, préparez vos documents et suivez votre dossier depuis votre téléphone.
+          </p>
+          <div className="hero-rise mt-8 flex flex-col gap-3 sm:flex-row" style={{ animationDelay: "260ms" }}>
+            <Button asChild size="xl">
+              <a href="#recherche-demarche">
+                Trouver ma démarche <ArrowRight aria-hidden="true" />
+              </a>
+            </Button>
+            <Button asChild size="xl" variant="outline">
+              <Link href={trackHref}>Suivre mon dossier</Link>
+            </Button>
+          </div>
+          <div id="recherche-demarche" className="hero-rise mt-10 scroll-mt-28 rounded-2xl bg-brand-mist p-4 sm:p-6" style={{ animationDelay: "320ms" }}>
+            <SearchCombobox id="hero-search" />
           </div>
         </div>
-      </section>
 
-      {/* Trust Banner */}
-      <div className="max-w-7xl mx-auto px-4 -mt-16 relative z-10">
-        <Card className="border-none shadow-2xl rounded-[32px] overflow-hidden bg-white">
-          <div className="grid md:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-slate-100">
-            {stats.map((stat) => (
-              <div key={stat.label} className="p-8 text-center space-y-1">
-                <div className="text-3xl font-black text-slate-900">{stat.value}</div>
-                <div className="text-[10px] uppercase tracking-[0.2em] font-bold text-slate-400">{stat.label}</div>
-              </div>
-            ))}
-          </div>
-        </Card>
-      </div>
-
-      {/* Services Section */}
-      <section className="py-24 md:py-32 px-4">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex flex-col md:flex-row items-end justify-between mb-16 gap-6">
-            <div className="space-y-4 max-w-xl">
-              <h2 className="text-4xl font-black tracking-tight text-slate-900">Services Prioritaires</h2>
-              <p className="text-lg text-slate-500 font-medium">
-                Démarrez vos démarches les plus courantes directement en ligne sans file d'attente.
-              </p>
-            </div>
-            <Link href="/catalogue">
-              <Button variant="ghost" className="text-primary font-black gap-2 hover:bg-primary/5 px-6 h-12 rounded-xl">
-                Tout le catalogue
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </Link>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {popularProcedures.map((proc) => (
-              <ProcedureCard
-                key={proc.id}
-                id={proc.id}
-                title={proc.title}
-                slug={proc.slug}
-                description={proc.description}
-                category={proc.category}
-                institution={proc.institution}
-                estimatedDays={proc.estimatedDays}
-                cost={proc.cost}
-                status={proc.status as "available" | "coming_soon"}
-                icon={proc.icon || "FileText"}
+        <div className="hero-slide relative order-1 -mx-4 sm:mx-0 lg:order-2" style={{ animationDelay: "80ms" }}>
+          <div className="relative bg-brand-deep px-4 pb-0 pt-6 sm:rounded-[28px] sm:px-8 sm:pt-8 lg:rounded-none lg:bg-transparent lg:p-0">
+            {/* Yellow block and red tab behind the photo */}
+            <div className="absolute right-2 top-2 h-[38%] w-[46%] rounded-[24px] bg-brand-yellow sm:right-4 sm:top-4 lg:-right-6 lg:-top-6" aria-hidden="true" />
+            <div className="absolute left-0 top-[16%] hidden h-20 w-3 rounded-r-md bg-brand-red sm:block lg:-left-5 lg:rounded-md" aria-hidden="true" />
+            <div className="relative mx-auto max-w-[520px] overflow-hidden rounded-t-[24px] sm:rounded-[24px]">
+              <Picture
+                name="maman-documents"
+                priority
+                sizes="(min-width: 1024px) 520px, (min-width: 640px) 80vw, 100vw"
+                className="aspect-[4/5] max-h-[48svh] w-full sm:max-h-none"
+                imgClassName="object-[50%_12%]"
               />
-            ))}
+            </div>
+            <TrackingExample />
           </div>
         </div>
-      </section>
+      </div>
+    </section>
+  );
+}
 
-      {/* Features - Institutional Grid */}
-      <section className="bg-slate-50 py-24 md:py-32 px-4 overflow-hidden relative">
-        <div className="max-w-7xl mx-auto relative z-10">
-          <div className="text-center max-w-2xl mx-auto mb-20 space-y-4">
-            <h2 className="text-4xl font-black text-slate-900">Pourquoi utiliser DOCU243 ?</h2>
-            <p className="text-slate-500 font-medium italic underline underline-offset-8 decoration-primary/30">
-              La plateforme gouvernementale qui simplifie votre vie de citoyen.
+function TrackingExample() {
+  return (
+    <figure className="absolute -bottom-6 left-4 hidden w-[min(300px,78%)] sm:block rounded-2xl bg-white p-4 shadow-float sm:left-0 lg:-left-16 lg:bottom-10" aria-label="Exemple de suivi de dossier">
+      <figcaption className="text-xs font-semibold text-brand-ink-2">Exemple de suivi</figcaption>
+      <p className="mt-1 font-display text-[1.0625rem] font-bold text-brand-ink">Attestation de résidence</p>
+      <ol className="mt-3 flex items-center gap-1.5" aria-label="Étape 2 sur 3">
+        <li className="h-1.5 flex-1 rounded-full bg-brand-royal" />
+        <li className="h-1.5 flex-1 rounded-full bg-brand-royal" />
+        <li className="h-1.5 flex-1 rounded-full bg-brand-line" />
+      </ol>
+      <div className="mt-3 flex items-center justify-between gap-2">
+        <StatusBadge status="under_review" />
+        <span className="text-xs text-brand-ink-2">Étape 2 sur 3</span>
+      </div>
+    </figure>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+
+function SectionHeading({ title, intro, className, id }: { title: React.ReactNode; intro?: React.ReactNode; className?: string; id?: string }) {
+  return (
+    <div className={cn("max-w-2xl", className)} data-reveal>
+      <h2 id={id} className="display-1">
+        {title}
+      </h2>
+      {intro && <p className="lead mt-4 text-brand-ink-2">{intro}</p>}
+    </div>
+  );
+}
+
+function CommonProcedures() {
+  const { data, isLoading, isError, refetch, isRefetching } = useProcedures();
+  const common = (data ?? []).filter((p) => p.isPriority).sort((a, b) => a.sortOrder - b.sortOrder).slice(0, 6);
+
+  return (
+    <section className="bg-brand-mist py-20 lg:py-28" aria-labelledby="common-title">
+      <div className="md-container">
+        <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
+          <SectionHeading
+            id="common-title"
+            title="Démarches courantes"
+            intro="Les frais, délais et lieux de dépôt viennent des sources officielles citées sur chaque fiche."
+          />
+          <Link href="/catalogue" className="link-arrow shrink-0" data-reveal>
+            Voir toutes les démarches <ArrowRight className="h-4 w-4" aria-hidden="true" />
+          </Link>
+        </div>
+
+        <div className="mt-12">
+          {isLoading || isRefetching ? (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3" aria-busy="true" aria-label="Chargement des démarches">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <ProcedureCardSkeleton key={i} />
+              ))}
+            </div>
+          ) : isError ? (
+            <ErrorState message="Les démarches n'ont pas pu être chargées." onRetry={() => refetch()} />
+          ) : common.length === 0 ? (
+            <EmptyState
+              icon={<FileSearch className="h-6 w-6" />}
+              title="Aucune démarche mise en avant pour le moment"
+              action={
+                <Button asChild>
+                  <Link href="/catalogue">Parcourir le catalogue</Link>
+                </Button>
+              }
+            />
+          ) : (
+            <ul className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {common.map((p) => (
+                <li key={p.id} data-reveal>
+                  <ProcedureCard procedure={p} />
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+
+function Goals() {
+  const featured = GOALS.filter((g) => g.photo);
+  const others = GOALS.filter((g) => !g.photo);
+  return (
+    <section className="bg-brand-yellow py-20 lg:py-28" aria-labelledby="goals-title">
+      <div className="md-container">
+        <SectionHeading
+          id="goals-title"
+          title="Que souhaitez-vous faire ?"
+          intro={<span className="text-brand-ink/80">Partez de votre projet : nous regroupons les démarches utiles et leur ordre quand il est confirmé.</span>}
+        />
+        <ul className="mt-12 grid gap-4 md:grid-cols-6">
+          {featured.map((g, i) => (
+            <li key={g.id} data-reveal className={i < 2 ? "md:col-span-3" : "md:col-span-2"}>
+              <Link
+                href={`/parcours#${g.id}`}
+                className="group relative block h-full overflow-hidden rounded-[22px] bg-brand-ink text-white"
+              >
+                <Picture
+                  name={g.photo!}
+                  sizes={i < 2 ? "(min-width: 768px) 50vw, 100vw" : "(min-width: 768px) 33vw, 100vw"}
+                  className={i < 2 ? "aspect-[4/3] md:aspect-[16/10]" : "aspect-[4/3]"}
+                  imgClassName="object-[50%_30%] transition-transform duration-500 ease-out group-hover:scale-[1.03]"
+                />
+                <span className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 bg-gradient-to-t from-brand-ink/90 via-brand-ink/60 to-transparent p-5 pt-16">
+                  <span>
+                    <span className="block font-display text-2xl font-bold">{g.title}</span>
+                    <span className="mt-1 block text-[0.9375rem] text-white/85">{g.summary}</span>
+                  </span>
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-yellow text-brand-ink transition-transform duration-200 group-hover:translate-x-1">
+                    <ArrowRight className="h-5 w-5" aria-hidden="true" />
+                  </span>
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+        <ul className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {others.map((g) => (
+            <li key={g.id} data-reveal>
+              <Link
+                href={`/parcours#${g.id}`}
+                className="group flex h-full min-h-[88px] items-center justify-between gap-3 rounded-2xl bg-white/70 px-5 py-4 font-semibold text-brand-ink transition-colors duration-200 hover:bg-white"
+              >
+                <span>
+                  <span className="block font-display text-[1.0625rem] font-bold leading-tight">{g.title}</span>
+                  <span className="mt-0.5 block text-sm font-normal text-brand-ink/75">{g.summary}</span>
+                </span>
+                <ArrowRight className="h-4 w-4 shrink-0 transition-transform duration-200 group-hover:translate-x-1" aria-hidden="true" />
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+
+export const HOW_STEPS = [
+  {
+    title: "Choisissez votre démarche",
+    text: "Cherchez par nom ou par projet. La fiche indique l'administration, les frais publiés, le délai et la façon de déposer votre dossier.",
+    icon: Search,
+  },
+  {
+    title: "Préparez et transmettez vos documents",
+    text: "Répondez à quelques questions pour obtenir votre liste de pièces. Pour les démarches ouvertes en ligne, envoyez vos pièces depuis votre téléphone ; sinon, la fiche vous oriente vers le bon portail ou guichet.",
+    icon: FileUp,
+  },
+  {
+    title: "Suivez les prochaines étapes",
+    text: "Votre dossier affiche son statut et ce qu'on attend de vous. Quand un rendez-vous ou un retrait en personne est nécessaire, la fiche et le dossier vous le disent.",
+    icon: Bell,
+  },
+];
+
+export function HowItWorksSteps() {
+  return (
+    <ol className="grid gap-8 md:grid-cols-3 md:gap-6">
+      {HOW_STEPS.map((s, i) => (
+        <li key={s.title} className="relative" data-reveal>
+          <div className="flex items-center gap-4">
+            <span className="font-display text-[3.5rem] font-extrabold leading-none text-brand-royal" aria-hidden="true">
+              {i + 1}
+            </span>
+            <span className="h-px flex-1 bg-brand-line" aria-hidden="true" />
+            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-sky text-brand-royal">
+              <s.icon className="h-6 w-6" aria-hidden="true" />
+            </span>
+          </div>
+          <h3 className="title-3 mt-5 text-brand-ink">
+            <span className="sr-only">Étape {i + 1} : </span>
+            {s.title}
+          </h3>
+          <p className="mt-2 text-brand-ink-2">{s.text}</p>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function HowItWorks() {
+  return (
+    <section className="bg-white py-20 lg:py-28" aria-labelledby="how-title" id="comment-ca-marche">
+      <div className="md-container">
+        <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-end">
+          <SectionHeading id="how-title" title={<>Trois étapes, <br className="hidden sm:block" />sans détour.</>} />
+          <div className="relative overflow-hidden rounded-[22px]" data-reveal>
+            <Picture name="guichet" sizes="(min-width: 1024px) 640px, 100vw" className="aspect-[16/9]" />
+            <p className="absolute bottom-3 left-3 right-3 flex items-start gap-2 rounded-xl bg-white/95 p-3 text-sm text-brand-ink sm:right-auto sm:max-w-sm">
+              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-brand-red" aria-hidden="true" />
+              Certaines démarches demandent un passage au guichet, un enrôlement ou un retrait en personne.
             </p>
           </div>
-
-          <div className="grid md:grid-cols-3 gap-8">
-            {[
-              {
-                icon: ShieldCheck,
-                title: "Sécurité d'État",
-                desc: "Vos informations sont chiffrées et stockées dans les centres de données nationaux sécurisés.",
-                color: "bg-blue-600"
-              },
-              {
-                icon: Zap,
-                title: "Rapidité Digitale",
-                desc: "Réduisez les délais de traitement jusqu'à 70% grâce à la numérisation complète des flux.",
-                color: "bg-amber-500"
-              },
-              {
-                icon: Globe,
-                title: "Partout en RDC",
-                desc: "Accédez aux services depuis votre province ou l'étranger, 24h/24 et 7j/7.",
-                color: "bg-emerald-500"
-              }
-            ].map((feature, i) => {
-              const Icon = feature.icon;
-              return (
-                <Card key={i} className="border-none shadow-sm hover:shadow-xl transition-all duration-300 rounded-3xl p-4 bg-white">
-                  <CardContent className="pt-8 space-y-6">
-                    <div className={cn("h-16 w-16 rounded-2xl flex items-center justify-center text-white shadow-lg", feature.color)}>
-                      <Icon className="h-8 w-8" />
-                    </div>
-                    <div className="space-y-2">
-                      <h3 className="text-xl font-bold text-slate-900">{feature.title}</h3>
-                      <p className="text-slate-500 text-sm leading-relaxed">{feature.desc}</p>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
         </div>
-      </section>
+        <div className="mt-14">
+          <HowItWorksSteps />
+        </div>
+        <Link href="/comment-ca-marche" className="link-arrow mt-10" data-reveal>
+          Comprendre les statuts de votre dossier <ArrowRight className="h-4 w-4" aria-hidden="true" />
+        </Link>
+      </div>
+    </section>
+  );
+}
 
-      {/* CTA Lightweight Web Experience */}
-      <section className="py-24 px-4">
-        <div className="max-w-7xl mx-auto bg-primary rounded-[40px] overflow-hidden relative">
-          <div className="absolute top-0 right-0 w-1/2 h-full bg-white/5 skew-x-12 translate-x-1/2" />
-          <div className="grid md:grid-cols-2 items-center p-12 md:p-20 relative z-10 gap-12">
-            <div className="space-y-8">
-              <h2 className="text-4xl md:text-5xl font-black text-white leading-tight">
-                Un site web rapide, simple et accessible sur mobile.
-              </h2>
-              <p className="text-xl text-primary-foreground/70 leading-relaxed">
-                Consultez vos démarches, déposez vos pièces et suivez vos dossiers depuis votre téléphone sans installer d'application.
-                DOCU243 est pensé pour consommer peu de ressources et rester utilisable même sur des connexions modestes.
-              </p>
-              <div className="flex flex-wrap gap-4">
-                <Link href="/auth">
-                  <Button className="h-14 px-8 bg-white text-primary hover:bg-white/90 font-black rounded-xl">
-                    Créer mon compte citoyen
-                  </Button>
-                </Link>
-                <Link href="/catalogue">
-                  <Button variant="outline" className="h-14 px-8 border-white/20 text-white hover:bg-white/10 font-black rounded-xl gap-2">
-                    <Globe className="h-5 w-5" />
-                    Ouvrir le site mobile
-                  </Button>
-                </Link>
-              </div>
-            </div>
+/* ------------------------------------------------------------------ */
 
-            <div className="flex justify-center md:justify-end">
-              <div className="relative w-full max-w-[22rem] rounded-[40px] border border-white/15 bg-slate-900/90 p-6 shadow-2xl">
-                <div className="text-white text-center p-6 space-y-4">
-                  <div className="flex items-center justify-between rounded-2xl bg-white/5 px-4 py-3 text-left">
-                    <div>
-                      <div className="text-[10px] font-black uppercase tracking-[0.2em] text-white/50">Mode léger</div>
-                      <div className="text-sm font-bold text-white">Accès mobile et web</div>
-                    </div>
-                    <div className="h-12 w-12 bg-primary rounded-2xl flex items-center justify-center">
-                      <Globe className="h-6 w-6" />
-                    </div>
+function HumanSection() {
+  const features = [
+    { icon: FileSearch, text: "Savoir quelles pièces préparer avant de vous déplacer, selon votre situation." },
+    { icon: MonitorSmartphone, text: "Constituer et transmettre votre dossier en ligne pour les démarches ouvertes dans MesDémarches." },
+    { icon: Bell, text: "Être prévenu à chaque changement de statut de votre dossier." },
+    { icon: RefreshCw, text: "Remplacer une pièce refusée sans refaire tout le dossier." },
+  ];
+  return (
+    <section className="overflow-hidden bg-brand-mist py-20 lg:py-28" aria-labelledby="human-title">
+      <div className="md-container grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
+        <div className="relative" data-reveal>
+          <div className="absolute -left-4 -top-4 h-2/3 w-2/3 rounded-[28px] bg-brand-royal sm:-left-8 sm:-top-8" aria-hidden="true" />
+          <Picture name="citoyenne-telephone" sizes="(min-width: 1024px) 600px, 100vw" className="relative aspect-[3/2] overflow-hidden rounded-[24px]" />
+        </div>
+        <div>
+          <SectionHeading
+            id="human-title"
+            title={
+              <>
+                Moins de déplacements.
+                <br />
+                Plus de temps pour vous.
+              </>
+            }
+          />
+          <ul className="mt-8 space-y-4">
+            {features.map((f) => (
+              <li key={f.text} className="flex items-start gap-4" data-reveal>
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white text-brand-royal shadow-card">
+                  <f.icon className="h-5 w-5" aria-hidden="true" />
+                </span>
+                <span className="pt-2 text-brand-ink">{f.text}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-8 border-l-4 border-brand-yellow pl-4 text-[0.9375rem] text-brand-ink-2" data-reveal>
+            Les rendez-vous, l'enrôlement biométrique et le retrait des documents restent en personne quand l'administration
+            l'exige. La fiche de chaque démarche vous le précise.
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+
+const DEMO = [
+  { title: "Attestation de résidence", ref: "DOCU_8F21C4", status: "pending_user_action", updated: "Mis à jour hier", next: "Remplacer la preuve de résidence", pieces: "1 pièce à remplacer" },
+  { title: "Certificat de bonne vie et mœurs", ref: "DOCU_3A90E1", status: "under_review", updated: "Mis à jour il y a 3 jours", next: "Aucune action de votre part", pieces: "4 pièces envoyées" },
+  { title: "Acte de naissance", ref: "DOCU_77B0D2", status: "ready", updated: "Mis à jour aujourd'hui", next: "Retirer le document à la commune", pieces: "Dossier complet" },
+];
+
+function CitizenSpacePreview() {
+  return (
+    <section className="on-blue relative overflow-hidden bg-brand-royal py-20 text-white lg:py-28" aria-labelledby="space-title">
+      <div className="md-container grid gap-12 lg:grid-cols-[0.85fr_1.15fr] lg:items-center">
+        <div data-reveal>
+          <h2 id="space-title" className="display-1">
+            Votre espace, <br className="hidden sm:block" />
+            vos dossiers.
+          </h2>
+          <p className="lead mt-5 text-white/85">
+            Un seul endroit pour voir où en est chaque dossier, ce qu'il manque et la prochaine étape.
+          </p>
+          <ul className="mt-8 space-y-3 text-white/90">
+            {["Statut écrit en toutes lettres", "Date de la dernière mise à jour", "Pièces à compléter ou à remplacer", "Historique détaillé de chaque dossier"].map((t) => (
+              <li key={t} className="flex items-center gap-3">
+                <CheckCircle2 className="h-5 w-5 shrink-0 text-brand-yellow" aria-hidden="true" /> {t}
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <figure className="rounded-[24px] bg-white p-4 text-brand-ink shadow-float sm:p-6" data-reveal aria-label="Démonstration de l'espace citoyen avec des données fictives">
+          <figcaption className="mb-4 flex flex-wrap items-center justify-between gap-2">
+            <span className="flex items-center gap-2 font-display text-lg font-bold">
+              <FolderOpen className="h-5 w-5 text-brand-royal" aria-hidden="true" /> Mes dossiers
+            </span>
+            <span className="rounded-full bg-brand-yellow px-3 py-1 text-xs font-bold text-brand-ink">Démonstration, données fictives</span>
+          </figcaption>
+          <ul className="divide-y divide-brand-line rounded-2xl border border-brand-line">
+            {DEMO.map((d) => (
+              <li key={d.ref} className="grid gap-3 p-4 sm:grid-cols-[1fr_auto] sm:items-center">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="font-semibold">{d.title}</p>
+                    <StatusBadge status={d.status} />
                   </div>
-                  <div className="grid gap-3 pt-4 text-left">
-                    <div className="rounded-2xl bg-white/5 p-4">
-                      <div className="text-[10px] font-black uppercase tracking-[0.2em] text-white/50">Catalogue</div>
-                      <div className="mt-2 text-sm font-bold">Démarches disponibles immédiatement</div>
-                    </div>
-                    <div className="rounded-2xl bg-white/5 p-4">
-                      <div className="text-[10px] font-black uppercase tracking-[0.2em] text-white/50">Suivi</div>
-                      <div className="mt-2 text-sm font-bold">Vos dossiers accessibles sur téléphone</div>
-                    </div>
-                    <div className="rounded-2xl bg-white/5 p-4">
-                      <div className="text-[10px] font-black uppercase tracking-[0.2em] text-white/50">Performance</div>
-                      <div className="mt-2 text-sm font-bold">Une expérience sobre, claire et rapide</div>
-                    </div>
-                  </div>
+                  <p className="mt-1 text-sm text-brand-ink-2">
+                    {d.ref} · {d.updated} · {d.pieces}
+                  </p>
+                  <p className="mt-2 text-sm">
+                    <span className="text-brand-ink-2">Prochaine action : </span>
+                    <span className="font-semibold">{d.next}</span>
+                  </p>
                 </div>
-              </div>
-            </div>
+                <span className="inline-flex items-center gap-1 text-sm font-semibold text-brand-royal" aria-hidden="true">
+                  Voir le détail <ArrowRight className="h-4 w-4" />
+                </span>
+              </li>
+            ))}
+          </ul>
+        </figure>
+      </div>
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+
+function FaqSection() {
+  return (
+    <section className="bg-white py-20 lg:py-28" aria-labelledby="faq-title">
+      <div className="md-container grid gap-10 lg:grid-cols-[0.8fr_1.2fr]">
+        <div>
+          <SectionHeading id="faq-title" title="Questions fréquentes" />
+          <Link href="/aide" className="link-arrow mt-6" data-reveal>
+            Toute l'aide <ArrowRight className="h-4 w-4" aria-hidden="true" />
+          </Link>
+        </div>
+        <div data-reveal>
+          <FaqAccordion />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function FinalCta() {
+  return (
+    <section className="bg-white pb-20 lg:pb-28" aria-labelledby="cta-title">
+      <div className="md-container">
+        <div className="on-blue relative grid overflow-hidden rounded-[28px] bg-brand-royal text-white lg:grid-cols-[1.2fr_0.8fr]" data-reveal>
+          <div className="relative z-10 p-8 sm:p-12 lg:p-16">
+            <h2 id="cta-title" className="display-1 max-w-xl">
+              Votre prochaine démarche commence ici.
+            </h2>
+            <Button asChild size="xl" variant="yellow" className="mt-8">
+              <Link href="/catalogue">
+                Explorer les démarches <ArrowRight aria-hidden="true" />
+              </Link>
+            </Button>
+          </div>
+          <div className="relative min-h-[220px] lg:min-h-0">
+            <div className="absolute left-0 top-0 z-10 hidden h-full w-3 bg-brand-yellow lg:block" aria-hidden="true" />
+            <Picture name="banniere-finale" sizes="(min-width: 1024px) 560px, 100vw" className="absolute inset-0" imgClassName="object-[82%_30%]" />
           </div>
         </div>
-      </section>
-    </div>
+      </div>
+    </section>
   );
 }

@@ -23,11 +23,21 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Link } from "wouter";
+import { RequireAuth } from "@/components/require-auth";
+import { AdminHeader } from "@/components/admin-shell";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import type { ActivityLog } from "@shared/schema";
 
-export default function ActivityLogs() {
+export default function ActivityLogsPage() {
+  return (
+    <RequireAuth staff>
+      <ActivityLogs />
+    </RequireAuth>
+  );
+}
+
+function ActivityLogs() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedLog, setSelectedLog] = useState<ActivityLog | null>(null);
 
@@ -65,33 +75,14 @@ export default function ActivityLogs() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-20">
-      <div className="bg-white border-b border-slate-200 py-8">
-        <div className="max-w-7xl mx-auto px-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link href="/admin">
-              <Button variant="ghost" size="icon" className="rounded-full">
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-            </Link>
-            <div>
-              <div className="text-[10px] font-black text-primary uppercase tracking-widest mb-1 flex items-center gap-2">
-                <History className="h-4 w-4" /> Audit & Sécurité
-              </div>
-              <h1 className="text-2xl font-black text-slate-900">Journal d'Activité</h1>
-            </div>
-          </div>
-          <Button variant="outline" className="rounded-2xl h-12 px-6 font-bold gap-2">
-            <Filter className="h-5 w-5" /> {filteredLogs.length} logs
-          </Button>
-        </div>
-      </div>
+    <div className="min-h-screen bg-brand-mist pb-20">
+      <AdminHeader title="Journal d'activité" intro="Toutes les actions enregistrées sur les dossiers, les pièces et les démarches." />
 
-      <div className="max-w-7xl mx-auto px-4 mt-10">
-        <Card className="rounded-[40px] shadow-xl shadow-slate-200/50 border-none overflow-hidden bg-white">
-          <div className="p-8 border-b border-slate-50 flex items-center justify-between bg-slate-50/50">
+      <div className="md-container mt-8">
+        <Card className="rounded-2xl shadow-card border-none overflow-hidden bg-white">
+          <div className="p-8 border-b border-brand-line flex items-center justify-between bg-brand-mist">
             <div className="relative w-full max-w-md">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-brand-ink-2" />
               <Input
                 placeholder="Rechercher par action, entité ou valeur..."
                 className="pl-12 h-14 border-none bg-white rounded-2xl shadow-sm focus-visible:ring-primary/20"
@@ -104,53 +95,53 @@ export default function ActivityLogs() {
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="text-slate-400 border-b border-slate-50">
-                  <th className="px-8 py-6 text-left text-[10px] font-black uppercase tracking-widest">Date & Heure</th>
-                  <th className="px-8 py-6 text-left text-[10px] font-black uppercase tracking-widest">Acteur</th>
-                  <th className="px-8 py-6 text-left text-[10px] font-black uppercase tracking-widest">Action</th>
-                  <th className="px-8 py-6 text-left text-[10px] font-black uppercase tracking-widest">Détails</th>
-                  <th className="px-8 py-6 text-right text-[10px] font-black uppercase tracking-widest">Actions</th>
+                <tr className="text-brand-ink-2 border-b border-brand-line">
+                  <th className="px-8 py-6 text-left text-sm font-semibold">Date & Heure</th>
+                  <th className="px-8 py-6 text-left text-sm font-semibold">Acteur</th>
+                  <th className="px-8 py-6 text-left text-sm font-semibold">Action</th>
+                  <th className="px-8 py-6 text-left text-sm font-semibold">Détails</th>
+                  <th className="px-8 py-6 text-right text-sm font-semibold">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {isLoading ? (
                   Array(8).fill(0).map((_, i) => (
                     <tr key={i} className="animate-pulse">
-                      <td colSpan={5} className="px-8 py-8"><div className="h-8 bg-slate-50 rounded-lg w-full" /></td>
+                      <td colSpan={5} className="px-8 py-8"><div className="h-8 bg-brand-mist rounded-lg w-full" /></td>
                     </tr>
                   ))
                 ) : filteredLogs.map((log) => (
-                  <tr key={log.id} className="hover:bg-slate-50/50 transition-colors group">
+                  <tr key={log.id} className="hover:bg-brand-mist transition-colors group">
                     <td className="px-8 py-6">
                       <div className="flex flex-col">
-                        <span className="font-black text-slate-900">{format(new Date(log.createdAt ?? new Date()), "dd MMM yyyy", { locale: fr })}</span>
-                        <span className="text-xs font-bold text-slate-400 tracking-tight">{format(new Date(log.createdAt ?? new Date()), "HH:mm:ss")}</span>
+                        <span className="font-bold text-brand-ink">{format(new Date(log.createdAt ?? new Date()), "dd MMM yyyy", { locale: fr })}</span>
+                        <span className="text-xs font-bold text-brand-ink-2 tracking-tight">{format(new Date(log.createdAt ?? new Date()), "HH:mm:ss")}</span>
                       </div>
                     </td>
                     <td className="px-8 py-6">
                       <div className="flex items-center gap-2">
-                        <div className="h-8 w-8 rounded-lg bg-slate-100 flex items-center justify-center">
-                          <UserIcon className="h-4 w-4 text-slate-400" />
+                        <div className="h-8 w-8 rounded-lg bg-brand-mist flex items-center justify-center">
+                          <UserIcon className="h-4 w-4 text-brand-ink-2" />
                         </div>
-                        <span className="font-bold text-slate-700 text-sm">Agent #{String(log.actorId).substring(0, 8)}</span>
+                        <span className="font-bold text-brand-ink text-sm">Agent #{String(log.actorId).substring(0, 8)}</span>
                       </div>
                     </td>
                     <td className="px-8 py-6">{getActionBadge(log.action)}</td>
                     <td className="px-8 py-6">
                       <div className="flex flex-col gap-1">
-                        <span className="text-sm font-bold text-slate-600">
+                        <span className="text-sm font-bold text-brand-ink-2">
                           {log.entityType} : <span className="text-primary tracking-tighter">{String(log.entityId).substring(0, 8)}</span>
                         </span>
                         {(log.oldValue || log.newValue) && (
-                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                          <span className="text-sm font-semibold text-brand-ink-2">
                             {log.oldValue || "—"} → {log.newValue || "—"}
                           </span>
                         )}
                       </div>
                     </td>
                     <td className="px-8 py-6 text-right">
-                      <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl hover:bg-slate-100" onClick={() => setSelectedLog(log)}>
-                        <Eye className="h-5 w-5 text-slate-400" />
+                      <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl hover:bg-brand-mist" onClick={() => setSelectedLog(log)}>
+                        <Eye className="h-5 w-5 text-brand-ink-2" />
                       </Button>
                     </td>
                   </tr>
@@ -160,7 +151,7 @@ export default function ActivityLogs() {
                     <td colSpan={5} className="px-8 py-20 text-center">
                       <div className="flex flex-col items-center gap-4">
                         <History className="h-12 w-12 text-slate-200" />
-                        <div className="text-slate-400 font-bold">Aucune activité trouvée</div>
+                        <div className="text-brand-ink-2 font-bold">Aucune activité trouvée</div>
                       </div>
                     </td>
                   </tr>
@@ -172,7 +163,7 @@ export default function ActivityLogs() {
       </div>
 
       <Dialog open={!!selectedLog} onOpenChange={(open) => !open && setSelectedLog(null)}>
-        <DialogContent className="sm:max-w-xl rounded-3xl">
+        <DialogContent className="sm:max-w-xl rounded-2xl">
           <DialogHeader>
             <DialogTitle>Détail du log</DialogTitle>
             <DialogDescription>
@@ -181,12 +172,12 @@ export default function ActivityLogs() {
           </DialogHeader>
           {selectedLog && (
             <div className="space-y-3 text-sm">
-              <div><span className="font-black text-slate-700">Action:</span> {selectedLog.action}</div>
-              <div><span className="font-black text-slate-700">Entité:</span> {selectedLog.entityType}</div>
-              <div><span className="font-black text-slate-700">ID entité:</span> {selectedLog.entityId}</div>
-              <div><span className="font-black text-slate-700">Acteur:</span> {selectedLog.actorId}</div>
-              <div><span className="font-black text-slate-700">Ancienne valeur:</span> {selectedLog.oldValue || "—"}</div>
-              <div><span className="font-black text-slate-700">Nouvelle valeur:</span> {selectedLog.newValue || "—"}</div>
+              <div><span className="font-bold text-brand-ink">Action:</span> {selectedLog.action}</div>
+              <div><span className="font-bold text-brand-ink">Entité:</span> {selectedLog.entityType}</div>
+              <div><span className="font-bold text-brand-ink">ID entité:</span> {selectedLog.entityId}</div>
+              <div><span className="font-bold text-brand-ink">Acteur:</span> {selectedLog.actorId}</div>
+              <div><span className="font-bold text-brand-ink">Ancienne valeur:</span> {selectedLog.oldValue || "—"}</div>
+              <div><span className="font-bold text-brand-ink">Nouvelle valeur:</span> {selectedLog.newValue || "—"}</div>
             </div>
           )}
         </DialogContent>

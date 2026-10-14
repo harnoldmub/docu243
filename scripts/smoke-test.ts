@@ -29,11 +29,12 @@ function assert(condition: unknown, message: string): asserts condition {
 class SessionClient {
   private cookieHeader = "";
 
-  async request<T>(pathname: string, init: RequestInit = {}): Promise<T> {
+  async raw(pathname: string, init: RequestInit = {}): Promise<Response> {
+    const isForm = init.body instanceof FormData;
     const response = await fetch(`${BASE_URL}${pathname}`, {
       ...init,
       headers: {
-        "Content-Type": "application/json",
+        ...(isForm ? {} : { "Content-Type": "application/json" }),
         ...(this.cookieHeader ? { Cookie: this.cookieHeader } : {}),
         ...(init.headers ?? {}),
       },
@@ -43,31 +44,47 @@ class SessionClient {
     if (setCookies.length > 0) {
       this.cookieHeader = setCookies.map((cookie) => cookie.split(";")[0]).join("; ");
     }
+    return response;
+  }
 
+  async request<T>(pathname: string, init: RequestInit = {}): Promise<T> {
+    const response = await this.raw(pathname, init);
     if (!response.ok) {
       const text = await response.text();
       throw new Error(`${init.method || "GET"} ${pathname} failed: ${response.status} ${text}`);
     }
-
     return response.json() as Promise<T>;
+  }
+
+  /** Asserts that a request is refused with the given status. */
+  async expectStatus(pathname: string, init: RequestInit, status: number, message: string) {
+    const response = await this.raw(pathname, init);
+    assert(response.status === status, `${message} (reçu ${response.status})`);
   }
 }
 
 loadLocalEnv();
 
 const BASE_URL = process.env.BASE_URL || "http://127.0.0.1:5001";
-const ADMIN_EMAIL = process.env.SMOKE_ADMIN_EMAIL || "admin.test@docu243.cd";
-const ADMIN_PASSWORD = process.env.SMOKE_ADMIN_PASSWORD || "admin1234";
-const CITIZEN_EMAIL = process.env.SMOKE_CITIZEN_EMAIL || "citoyen.test@docu243.cd";
-const CITIZEN_PASSWORD = process.env.SMOKE_CITIZEN_PASSWORD || "citoyen123";
+const ADMIN_EMAIL = process.env.SMOKE_ADMIN_EMAIL || "admin@docu243.cd";
+const ADMIN_PASSWORD = process.env.SMOKE_ADMIN_PASSWORD || "admin123";
+// A fresh citizen account is created for each run.
+const CITIZEN_EMAIL = `smoke.${Date.now()}@example.test`;
+const CITIZEN_PASSWORD = "Smoke-Test-2026";
+
+// Smallest valid PNG (1x1 pixel).
+const PNG = Uint8Array.from(
+  atob("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg=="),
+  (c) => c.charCodeAt(0),
+);
 
 async function main() {
   const citizen = new SessionClient();
   const admin = new SessionClient();
 
-  const citizenUser = await citizen.request<{ id: string; prenom: string; email: string }>("/api/auth/login", {
+  const citizenUser = await citizen.request<{ id: string; prenom: string; email: string }>("/api/auth/register", {
     method: "POST",
-    body: JSON.stringify({ email: CITIZEN_EMAIL, password: CITIZEN_PASSWORD }),
+    body: JSON.stringify({ prenom: "Smoke", nom: "Test", email: CITIZEN_EMAIL, phone: "0812345678", password: CITIZEN_PASSWORD }),
   });
   const adminUser = await admin.request<{ id: string; prenom: string; email: string; role: string }>("/api/auth/login", {
     method: "POST",
@@ -76,13 +93,22 @@ async function main() {
 
   assert(["agent", "admin", "super_admin"].includes(adminUser.role), "Le compte admin n'a pas un role agent/admin valide.");
 
-  const procedures = await citizen.request<Array<{ id: string; slug: string; title: string; status: string }>>("/api/procedures");
+  const procedures = await citizen.request<Array<{ id: string; slug: string; title: string; status: string; channel: string; editorialStatus: string }>>(
+    "/api/procedures",
+  );
   assert(procedures.length > 0, "Aucune procedure disponible.");
+  assert(procedures.every((p) => p.editorialStatus === "published"), "Le catalogue public expose des fiches non publiees.");
+
+  const external = procedures.find((p) => p.channel === "external");
+  if (external) {
+    await citizen.expectStatus("/api/applications", { method: "POST", body: JSON.stringify({ procedureId: external.id }) }, 409,
+      "Une demarche deposee sur un portail externe ne doit pas creer de dossier.");
+  }
+  await citizen.expectStatus("/api/inconnue", {}, 404, "Une route API inconnue doit repondre 404.");
 
   const preferredProcedure =
     procedures.find((procedure) => procedure.slug === "legalisation-de-document") ||
-    procedures.find((procedure) => procedure.status === "available") ||
-    procedures[0];
+    procedures.find((procedure) => procedure.status === "available" && procedure.channel === "docu243");
   assert(preferredProcedure, "Impossible de selectionner une procedure de test.");
 
   const createdApplication = await citizen.request<{ id: string; procedureId: string; status: string; reference: string }>("/api/applications", {
@@ -94,6 +120,15 @@ async function main() {
   const detail = await citizen.request<any>(`/api/applications/${createdApplication.id}`);
   assert(Array.isArray(detail.procedure?.fields), "Les champs de procedure sont absents.");
   assert(Array.isArray(detail.procedure?.requiredDocuments), "Les documents requis sont absents.");
+
+  await citizen.expectStatus(`/api/applications/${createdApplication.id}`, { method: "PATCH", body: JSON.stringify({ status: "approved" }) }, 400,
+    "Un citoyen ne doit pas pouvoir approuver son propre dossier.");
+
+  const requiredDocs = detail.procedure.requiredDocuments.filter((d: any) => d.required);
+  if (requiredDocs.length > 0) {
+    await citizen.expectStatus(`/api/applications/${createdApplication.id}`, { method: "PATCH", body: JSON.stringify({ status: "submitted" }) }, 400,
+      "Un dossier incomplet ne doit pas pouvoir etre transmis.");
+  }
 
   if (detail.procedure.fields.length > 0) {
     const fieldValues = detail.procedure.fields.map((field: any, index: number) => ({
@@ -107,16 +142,14 @@ async function main() {
     });
   }
 
-  if (detail.procedure.requiredDocuments.length > 0) {
+  for (const doc of detail.procedure.requiredDocuments) {
+    const form = new FormData();
+    form.append("requiredDocId", doc.id);
+    form.append("file", new Blob([PNG], { type: "image/png" }), "piece-de-test.png");
+    const uploaded = await citizen.request<{ fileUrl: string }>(`/api/applications/${createdApplication.id}/upload`, { method: "POST", body: form });
     await citizen.request(`/api/applications/${createdApplication.id}/documents`, {
       method: "POST",
-      body: JSON.stringify({
-        requiredDocId: detail.procedure.requiredDocuments[0].id,
-        fileUrl: "https://storage.docu243.cd/tests/document-de-test.pdf",
-        originalName: "document-de-test.pdf",
-        mimeType: "application/pdf",
-        size: 120000,
-      }),
+      body: JSON.stringify({ requiredDocId: doc.id, fileUrl: uploaded.fileUrl, originalName: "piece-de-test.png" }),
     });
   }
 
@@ -144,10 +177,16 @@ async function main() {
     });
   }
 
+  await admin.expectStatus(`/api/admin/applications/${createdApplication.id}/status`, { method: "PATCH", body: JSON.stringify({ status: "pending_user_action" }) }, 400,
+    "Une demande de correction sans message doit etre refusee.");
+
   await admin.request(`/api/admin/applications/${createdApplication.id}/status`, {
     method: "PATCH",
     body: JSON.stringify({ status: "ready" }),
   });
+
+  const submitted = await citizen.request<any>(`/api/applications/${createdApplication.id}`);
+  assert(submitted.requirementsSnapshot, "Les exigences applicables au dossier transmis ne sont pas conservees.");
 
   const citizenNotifications = await citizen.request<any[]>("/api/notifications");
   assert(

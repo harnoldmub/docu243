@@ -6,3 +6,5 @@ attached_assets
 server/public
 vite.config.ts.*
 *.tar.gz
+uploads
+.claude

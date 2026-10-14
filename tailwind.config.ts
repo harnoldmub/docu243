@@ -6,9 +6,11 @@ export default {
   theme: {
     extend: {
       borderRadius: {
-        lg: ".5625rem", /* 9px */
-        md: ".375rem", /* 6px */
-        sm: ".1875rem", /* 3px */
+        sm: "8px",
+        md: "12px",
+        lg: "16px",
+        xl: "20px",
+        "2xl": "24px",
       },
       colors: {
         background: "hsl(var(--background) / <alpha-value>)",
@@ -82,22 +84,23 @@ export default {
           foreground: "hsl(var(--sidebar-accent-foreground) / <alpha-value>)",
           border: "var(--sidebar-accent-border)"
         },
-        status: {
-          pending: "#3774b6",
-          validated: "#2ecc71",
-          waiting: "#f7d116",
-          rejected: "#ce1021",
-        },
-        congo: {
-          blue: "#3774b6",
-          red: "#ce1021",
-          yellow: "#f7d116",
-          darkBlue: "#1f3f66",
-          lightBlue: "#eaf1f9",
+        brand: {
+          royal: "#0047ff",
+          deep: "#002a8f",
+          night: "#001a5c",
+          yellow: "#ffd400",
+          "yellow-soft": "#fff6c7",
+          red: "#e52336",
+          mist: "#f4f7fc",
+          sky: "#e6edff",
+          ink: "#101b35",
+          "ink-2": "#526079",
+          line: "#dce3ef",
         },
       },
       fontFamily: {
         sans: ["var(--font-sans)"],
+        display: ["var(--font-display)"],
         serif: ["var(--font-serif)"],
         mono: ["var(--font-mono)"],
       },
@@ -110,6 +113,11 @@ export default {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: "0" },
         },
+      },
+      boxShadow: {
+        card: "var(--shadow-card)",
+        raised: "var(--shadow-raised)",
+        float: "var(--shadow-float)",
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",

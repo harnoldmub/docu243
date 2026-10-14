@@ -53,6 +53,8 @@ export interface IStorage {
   getApplicationDocuments(applicationId: string): Promise<any[]>;
   setApplicationFieldValue(applicationId: string, fieldId: string, value: string): Promise<void>;
   addApplicationDocument(doc: any): Promise<any>;
+  upsertApplicationDocument(doc: any): Promise<any>;
+  markAllNotificationsAsRead(userId: string): Promise<void>;
   updateApplicationDocumentStatus(id: string, status: string, reason?: string): Promise<void>;
 
   // Payments
@@ -63,7 +65,7 @@ export interface IStorage {
   // Notifications
   getNotificationsByUser(userId: string): Promise<Notification[]>;
   createNotification(notification: any): Promise<Notification>;
-  markNotificationAsRead(id: string): Promise<void>;
+  markNotificationAsRead(id: string, userId: string): Promise<void>;
 
   // File Uploads
   createFileUpload(file: Omit<FileUpload, "id" | "createdAt">): Promise<FileUpload>;
@@ -83,7 +85,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.email, email));
+    const [user] = await db.select().from(users).where(sql`lower(${users.email}) = lower(${email.trim()})`);
     return user || undefined;
   }
 
@@ -198,6 +200,21 @@ export class DatabaseStorage implements IStorage {
     return newDoc;
   }
 
+  // A new file for a required document replaces the previous one (e.g. after a refusal).
+  async upsertApplicationDocument(doc: any): Promise<any> {
+    const [existing] = await db
+      .select()
+      .from(applicationDocuments)
+      .where(and(eq(applicationDocuments.applicationId, doc.applicationId), eq(applicationDocuments.requiredDocId, doc.requiredDocId)));
+    if (!existing) return this.addApplicationDocument(doc);
+    const [updated] = await db
+      .update(applicationDocuments)
+      .set({ ...doc, rejectionReason: null, updatedAt: new Date() })
+      .where(eq(applicationDocuments.id, existing.id))
+      .returning();
+    return updated;
+  }
+
   async updateApplicationDocumentStatus(id: string, status: string, reason?: string): Promise<void> {
     await db.update(applicationDocuments).set({ status, rejectionReason: reason || null, updatedAt: new Date() }).where(eq(applicationDocuments.id, id));
   }
@@ -227,8 +244,18 @@ export class DatabaseStorage implements IStorage {
     return n;
   }
 
-  async markNotificationAsRead(id: string): Promise<void> {
-    await db.update(notifications).set({ readAt: new Date() }).where(eq(notifications.id, id));
+  async markNotificationAsRead(id: string, userId: string): Promise<void> {
+    await db
+      .update(notifications)
+      .set({ readAt: new Date() })
+      .where(and(eq(notifications.id, id), eq(notifications.userId, userId)));
+  }
+
+  async markAllNotificationsAsRead(userId: string): Promise<void> {
+    await db
+      .update(notifications)
+      .set({ readAt: new Date() })
+      .where(and(eq(notifications.userId, userId), sql`${notifications.readAt} is null`));
   }
 
   // File Uploads
