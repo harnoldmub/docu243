@@ -147,7 +147,7 @@ function CommonProcedures() {
           <SectionHeading
             id="common-title"
             title="Démarches courantes"
-            intro="Prix total affiché : frais officiels et frais de service MesDémarches. Nous nous chargeons du reste."
+            intro="Prix total affiché : frais officiels et frais de service MesDémarches."
           />
           <Link href="/catalogue" className="link-arrow shrink-0" data-reveal>
             Voir toutes les démarches <ArrowRight className="h-4 w-4" aria-hidden="true" />

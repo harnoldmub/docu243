@@ -120,6 +120,7 @@ export default function Catalogue() {
         </select>
       </div>
 
+      {procedures.some((p) => availability(p).key !== "online") && (
       <fieldset>
         <legend className="mb-3 font-display text-lg font-bold text-brand-ink">Disponibilité</legend>
         <div className="space-y-1">
@@ -144,6 +145,7 @@ export default function Catalogue() {
           })}
         </div>
       </fieldset>
+      )}
     </div>
   );
 

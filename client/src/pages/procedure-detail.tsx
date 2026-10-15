@@ -195,8 +195,8 @@ export default function ProcedureDetail() {
               <dd className="font-semibold text-brand-ink">{fee.label}</dd>
             </div>
             <div className="rounded-xl bg-white p-3">
-              <dt className="text-sm text-brand-ink-2">Disponibilité</dt>
-              <dd className="font-semibold text-brand-ink">{a.label}</dd>
+              <dt className="text-sm text-brand-ink-2">{a.key === "online" ? "Institution" : "Disponibilité"}</dt>
+              <dd className="font-semibold text-brand-ink">{a.key === "online" ? procedure.institution : a.label}</dd>
             </div>
           </dl>
         </div>
@@ -363,11 +363,13 @@ export default function ProcedureDetail() {
                   </div>
                 ))}
               </dl>
-              <div className="mt-6 border-t border-brand-line pt-6">
-                <p className="mb-1 text-sm text-brand-ink-2">Disponibilité</p>
-                <p className="font-semibold text-brand-ink">{a.label}</p>
-                <p className="mt-1 text-sm text-brand-ink-2">{a.description}</p>
-              </div>
+              {a.key !== "online" && (
+                <div className="mt-6 border-t border-brand-line pt-6">
+                  <p className="mb-1 text-sm text-brand-ink-2">Disponibilité</p>
+                  <p className="font-semibold text-brand-ink">{a.label}</p>
+                  <p className="mt-1 text-sm text-brand-ink-2">{a.description}</p>
+                </div>
+              )}
               {cta && <div className="mt-6 hidden lg:block">{cta}</div>}
               {start.isError && (
                 <p role="alert" className="mt-3 text-sm font-semibold text-[var(--st-danger)]">

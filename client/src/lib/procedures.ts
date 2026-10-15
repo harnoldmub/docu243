@@ -129,7 +129,7 @@ export function availability(p: Pick<Procedure, "status" | "channel">): {
   if (p.status === "available") {
     return {
       key: "online",
-      label: "Nous nous en chargeons",
+      label: "",
       description: "Envoyez vos documents et réglez en ligne : notre équipe effectue la démarche pour vous.",
     };
   }
@@ -141,7 +141,6 @@ export function availability(p: Pick<Procedure, "status" | "channel">): {
 }
 
 export const AVAILABILITY_FILTERS: Array<{ value: AvailabilityKey; label: string }> = [
-  { value: "online", label: "Nous nous en chargeons" },
   { value: "soon", label: "À venir" },
 ];
 

@@ -12,6 +12,8 @@ const availabilityStyle: Record<AvailabilityKey, { className: string; icon: type
 
 export function AvailabilityBadge({ procedure, className }: { procedure: Pick<ProcedureWithGuide, "status" | "channel">; className?: string }) {
   const a = availability(procedure);
+  // Only unavailable procedures carry a badge.
+  if (a.key === "online") return null;
   const style = availabilityStyle[a.key];
   const Icon = style.icon;
   return (
