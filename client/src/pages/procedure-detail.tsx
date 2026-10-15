@@ -32,6 +32,7 @@ import { ErrorState, Notice } from "@/components/states";
 import { availability, feeLabel, formatDate, formatMoney, priceOf, type ProcedureWithGuide } from "@/lib/procedures";
 import { authHref } from "@/lib/auth-links";
 import { cn } from "@/lib/utils";
+import { countries, countryName } from "@/lib/countries";
 
 type Detail = ProcedureWithGuide & { fields: ProcedureField[]; requiredDocuments: ProcedureRequiredDoc[] };
 type Checklist = NonNullable<ProcedureGuide["checklist"]>;
@@ -51,6 +52,8 @@ export default function ProcedureDetail() {
   const slug = params?.slug ?? "";
   const [, setLocation] = useLocation();
   const { user } = useAuth();
+  const [passportCountry, setPassportCountry] = useState("");
+  const [passportCity, setPassportCity] = useState("");
 
   const { data: procedure, isLoading, isError, error, refetch } = useQuery<Detail>({ queryKey: [`/api/procedures/${slug}`] });
   const { data: myApps = [] } = useQuery<Array<{ id: string; procedureId: string; status: string }>>({
@@ -118,12 +121,18 @@ export default function ProcedureDetail() {
         </Button>
       )
     ) : a.key === "external" && procedure.externalUrl ? (
-      <Button asChild size="lg" className="w-full">
-        <a href={procedure.externalUrl} target="_blank" rel="noopener noreferrer">
-          {externalLabel} <ExternalLink aria-hidden="true" />
-          <span className="sr-only">(nouvel onglet)</span>
-        </a>
-      </Button>
+      procedure.slug === "passeport-biometrique" && (!passportCountry || !passportCity.trim()) ? (
+        <Button size="lg" className="w-full" onClick={() => document.getElementById(!passportCountry ? "passport-country" : "passport-city")?.focus()}>
+          Choisir mon lieu d'abord <MapPin aria-hidden="true" />
+        </Button>
+      ) : (
+        <Button asChild size="lg" className="w-full">
+          <a href={procedure.externalUrl} target="_blank" rel="noopener noreferrer">
+            {externalLabel} <ExternalLink aria-hidden="true" />
+            <span className="sr-only">(nouvel onglet)</span>
+          </a>
+        </Button>
+      )
     ) : null;
 
   const ctaHelp =
@@ -221,6 +230,8 @@ export default function ProcedureDetail() {
               Les sources consultées se contredisent sur certains points de cette démarche. Renseignez-vous auprès de l'administration.
             </Notice>
           )}
+
+          {procedure.slug === "passeport-biometrique" && <PassportConsularOrientation country={passportCountry} city={passportCity} onCountryChange={setPassportCountry} onCityChange={setPassportCity} />}
 
           {guide.conditions && guide.conditions.length > 0 && (
             <Block title="À savoir avant de commencer">
@@ -390,6 +401,58 @@ export default function ProcedureDetail() {
         {cta && <p className="mt-1.5 text-center text-xs text-brand-ink-2">{ctaHelp}</p>}
       </div>
     </div>
+  );
+}
+
+function PassportConsularOrientation({ country, city, onCountryChange, onCityChange }: { country: string; city: string; onCountryChange: (value: string) => void; onCityChange: (value: string) => void }) {
+  const hasLocation = !!country && !!city.trim();
+
+  return (
+    <section className="rounded-2xl border border-brand-line bg-brand-mist p-5 sm:p-7" aria-labelledby="consular-orientation-title">
+      <div className="flex items-start gap-3">
+        <MapPin className="mt-1 h-6 w-6 shrink-0 text-brand-royal" aria-hidden="true" />
+        <div>
+          <h2 id="consular-orientation-title" className="font-display text-xl font-bold text-brand-ink">Où faire votre capture biométrique ?</h2>
+          <p className="mt-2 text-brand-ink-2">Choisissez le pays et la ville où vous vous trouvez. La capture du visage, des empreintes et de la signature se fait en personne, après l'inscription sur le portail officiel.</p>
+        </div>
+      </div>
+      <div className="mt-5 grid gap-4 sm:grid-cols-2">
+        <div>
+          <label htmlFor="passport-country" className="mb-1.5 block font-semibold text-brand-ink">Pays où vous vous trouvez</label>
+          <select id="passport-country" className="field-input" value={country} onChange={(event) => onCountryChange(event.target.value)}>
+            <option value="">Choisir un pays…</option>
+            {countries.map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}
+          </select>
+        </div>
+        <div>
+          <label htmlFor="passport-city" className="mb-1.5 block font-semibold text-brand-ink">Votre ville</label>
+          <input id="passport-city" className="field-input" value={city} onChange={(event) => onCityChange(event.target.value)} autoComplete="address-level2" maxLength={100} />
+        </div>
+      </div>
+      {hasLocation && (
+        <div className="mt-5 rounded-xl border border-brand-line bg-white p-5" role="status">
+          {country === "FR" ? (
+            <>
+              <p className="font-bold text-brand-ink">Ambassade de la RDC en France · Paris</p>
+              <p className="mt-1 text-brand-ink-2">32 cours Albert 1er, 75008 Paris. L'ambassade indique que la capture du passeport s'effectue sur rendez-vous à Paris.</p>
+              <a href="https://ambardcparis.com/demande-de-passeport/" target="_blank" rel="noopener noreferrer" className="link-arrow mt-3 inline-flex min-h-11 items-center gap-2">Consulter la procédure et prendre rendez-vous <ExternalLink className="h-4 w-4" aria-hidden="true" /><span className="sr-only">(nouvel onglet)</span></a>
+              {city.trim().toLocaleLowerCase("fr") !== "paris" && <p className="mt-2 text-sm text-brand-ink-2">Depuis {city.trim()}, vérifiez auprès de l'ambassade si un autre lieu de capture est habilité avant de vous déplacer.</p>}
+            </>
+          ) : country === "CD" ? (
+            <>
+              <p className="font-bold text-brand-ink">En République démocratique du Congo</p>
+              <p className="mt-1 text-brand-ink-2">La capture se fait en personne dans un centre d'enrôlement habilité. Le portail officiel vous indique les étapes après l'inscription.</p>
+            </>
+          ) : (
+            <>
+              <p className="font-bold text-brand-ink">Poste consulaire compétent à confirmer · {countryName(country)}</p>
+              <p className="mt-1 text-brand-ink-2">Depuis {city.trim()}, consultez le portail officiel et confirmez avec l'ambassade ou le consulat de la RDC compétent pour votre lieu de résidence où se fait la capture. Nous ne disposons pas d'une liste vérifiée des centres pour ce pays.</p>
+            </>
+          )}
+          <p className="mt-3 text-sm text-brand-ink-2">La ville indiquée ici sert uniquement à cette orientation ; elle n'est pas enregistrée.</p>
+        </div>
+      )}
+    </section>
   );
 }
 

@@ -44,6 +44,8 @@ const SCHEMA_SQL = `
 
   ALTER TABLE applications ADD COLUMN IF NOT EXISTS status_note text;
   ALTER TABLE applications ADD COLUMN IF NOT EXISTS requirements_snapshot jsonb;
+  ALTER TABLE applications ADD COLUMN IF NOT EXISTS residence_country text;
+  ALTER TABLE applications ADD COLUMN IF NOT EXISTS residence_city text;
 
   CREATE TABLE IF NOT EXISTS file_uploads (
     id varchar PRIMARY KEY DEFAULT gen_random_uuid(),

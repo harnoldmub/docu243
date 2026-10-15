@@ -313,7 +313,7 @@ export async function registerRoutes(
   });
 
   app.patch("/api/applications/:id", requireAuth, async (req: Request, res: Response) => {
-    const { status, fieldValues } = req.body;
+    const { status, fieldValues, residenceCountry, residenceCity } = req.body;
     const dossier = await storage.getApplication(req.params.id);
     if (!dossier) {
       return res.status(404).json({ error: "Dossier introuvable" });
@@ -327,6 +327,16 @@ export async function registerRoutes(
     }
     if (status && status !== "submitted") {
       return res.status(400).json({ error: "Changement de statut non autorisé." });
+    }
+    if (residenceCountry !== undefined || residenceCity !== undefined) {
+      if ((residenceCountry !== undefined && (typeof residenceCountry !== "string" || residenceCountry.length > 100)) ||
+          (residenceCity !== undefined && (typeof residenceCity !== "string" || residenceCity.length > 100))) {
+        return res.status(400).json({ error: "Pays ou ville invalide." });
+      }
+      await storage.updateApplication(dossier.id, {
+        ...(residenceCountry !== undefined ? { residenceCountry: residenceCountry.trim() } : {}),
+        ...(residenceCity !== undefined ? { residenceCity: residenceCity.trim() } : {}),
+      });
     }
 
     // A dossier sent back for correction keeps the requirements captured at its first submission.
@@ -352,6 +362,9 @@ export async function registerRoutes(
       const missingDocs = requiredDocs
         .filter((d) => d.required && !docs.find((x) => x.requiredDocId === d.id && !["rejected", "replacement_requested"].includes(x.status)))
         .map((d) => d.name);
+      const currentLocation = await storage.getApplication(dossier.id);
+      if (!currentLocation?.residenceCountry?.trim()) missingFields.unshift("Pays où vous vous trouvez");
+      if (!currentLocation?.residenceCity?.trim()) missingFields.unshift("Ville où vous vous trouvez");
       if (missingFields.length || missingDocs.length) {
         return res.status(400).json({
           error: "Votre dossier est incomplet.",

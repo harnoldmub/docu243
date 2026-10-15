@@ -88,6 +88,8 @@ export function registerPaymentRoutes(app: Express, requireAuth: (req: Request, 
     const fields = await storage.getProcedureFields(dossier.procedureId);
     const required = await storage.getProcedureRequiredDocs(dossier.procedureId);
     const missingFields = fields.filter((f) => f.required && !values.find((v) => v.fieldId === f.id && String(v.value).trim())).map((f) => f.label);
+    if (!dossier.residenceCountry?.trim()) missingFields.unshift("Pays où vous vous trouvez");
+    if (!dossier.residenceCity?.trim()) missingFields.unshift("Ville où vous vous trouvez");
     const missingDocs = required
       .filter((d) => d.required && !docs.find((x) => x.requiredDocId === d.id && !["rejected", "replacement_requested"].includes(x.status)))
       .map((d) => d.name);

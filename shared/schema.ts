@@ -135,6 +135,8 @@ export const applications = pgTable("applications", {
   userId: varchar("user_id").notNull(),
   procedureId: varchar("procedure_id").notNull(),
   status: text("status").notNull().default("draft"), // draft, submitted, received, under_review, pending_user_action, pending_payment, approved, rejected, ready, delivered
+  residenceCountry: text("residence_country"),
+  residenceCity: text("residence_city"),
   statusNote: text("status_note"), // last message from the agent (e.g. correction reason)
   requirementsSnapshot: jsonb("requirements_snapshot"), // fields and documents applicable when submitted
   submittedAt: timestamp("submitted_at"),

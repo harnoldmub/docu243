@@ -18,6 +18,7 @@ import { ErrorState, Notice } from "@/components/states";
 import { formatMoney, priceOf } from "@/lib/procedures";
 import { relative } from "@/pages/dashboard";
 import { cn } from "@/lib/utils";
+import { countries, countryName } from "@/lib/countries";
 
 type Dossier = Application & {
   procedure?: Procedure & { fields: ProcedureField[]; requiredDocuments: ProcedureRequiredDoc[]; guide: Procedure["guide"] };
@@ -167,6 +168,9 @@ function Wizard({ dossier, queryKey }: { dossier: Dossier; queryKey: string[] })
   const docs = dossier.procedure?.requiredDocuments ?? [];
   const initial = useMemo(() => Object.fromEntries(dossier.fieldValues.map((v) => [v.fieldId, v.value])), [dossier.fieldValues]);
   const [values, setValues] = useState<Record<string, string>>(initial);
+  const [residenceCountry, setResidenceCountry] = useState(dossier.residenceCountry ?? "");
+  const [residenceCity, setResidenceCity] = useState(dossier.residenceCity ?? "");
+  const [locationTouched, setLocationTouched] = useState(false);
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   // When an agent asked for a document to be replaced, open directly on the documents step.
   const [step, setStep] = useState(() =>
@@ -196,6 +200,13 @@ function Wizard({ dossier, queryKey }: { dossier: Dossier; queryKey: string[] })
 
   const save = useMutation({
     mutationFn: async (fieldValues: Array<{ fieldId: string; value: string }>) => apiRequest("PATCH", `/api/applications/${dossier.id}`, { fieldValues }),
+    onSuccess: () => {
+      setSavedAt(new Date());
+      queryClient.invalidateQueries({ queryKey });
+    },
+  });
+  const saveLocation = useMutation({
+    mutationFn: async (location: { residenceCountry: string; residenceCity: string }) => apiRequest("PATCH", `/api/applications/${dossier.id}`, location),
     onSuccess: () => {
       setSavedAt(new Date());
       queryClient.invalidateQueries({ queryKey });
@@ -233,12 +244,21 @@ function Wizard({ dossier, queryKey }: { dossier: Dossier; queryKey: string[] })
 
   const goToDocs = () => {
     setTouched(Object.fromEntries(fields.map((f) => [f.id, true])));
+    setLocationTouched(true);
+    if (!residenceCountry || !residenceCity.trim()) {
+      document.getElementById(!residenceCountry ? "residence-country" : "residence-city")?.focus();
+      return;
+    }
     if (missingFields.length) {
       document.getElementById(`field-${missingFields[0].id}`)?.focus();
       return;
     }
-    setStep(1);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    saveLocation.mutate({ residenceCountry, residenceCity: residenceCity.trim() }, {
+      onSuccess: () => {
+        setStep(1);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      },
+    });
   };
 
   const upload = async (reqDoc: ProcedureRequiredDoc, file: File) => {
@@ -285,21 +305,39 @@ function Wizard({ dossier, queryKey }: { dossier: Dossier; queryKey: string[] })
       <div className="rounded-2xl bg-white p-5 shadow-card sm:p-8">
         <Stepper steps={STEPS} currentStep={step} onStepClick={setStep} />
         <p className="mt-3 min-h-5 text-sm text-brand-ink-2" role="status" aria-live="polite">
-          {save.isPending ? "Enregistrement…" : save.isError ? "" : savedAt ? `Brouillon enregistré à ${format(savedAt, "HH:mm", { locale: fr })}` : "Votre brouillon est enregistré automatiquement."}
+          {save.isPending || saveLocation.isPending ? "Enregistrement…" : save.isError || saveLocation.isError ? "" : savedAt ? `Brouillon enregistré à ${format(savedAt, "HH:mm", { locale: fr })}` : "Votre brouillon est enregistré automatiquement."}
         </p>
         {save.isError && (
           <p role="alert" className="mt-1 text-sm font-semibold text-[var(--st-danger)]">
             Cette information n'a pas été enregistrée : {(save.error as Error).message}
           </p>
         )}
+        {saveLocation.isError && <p role="alert" className="mt-1 text-sm font-semibold text-[var(--st-danger)]">Le lieu n'a pas été enregistré : {saveLocation.error.message}</p>}
 
         {step === 0 && (
           <section className="mt-6" aria-labelledby="step-info">
             <h2 id="step-info" className="title-3 text-brand-ink">Vos informations</h2>
             <p className="mt-1 text-brand-ink-2">Les champs marqués « obligatoire » doivent être remplis pour transmettre le dossier.</p>
-            {fields.length === 0 ? (
-              <p className="mt-6 text-brand-ink-2">Aucune information n'est demandée pour cette démarche.</p>
-            ) : (
+            <div className="mt-6 grid gap-5 rounded-xl bg-brand-mist p-4 md:grid-cols-2">
+              <div>
+                <label htmlFor="residence-country" className="mb-1.5 block font-semibold text-brand-ink">Pays où vous vous trouvez <span className="ml-2 text-sm font-normal text-brand-ink-2">Obligatoire</span></label>
+                <select id="residence-country" className="field-input" value={residenceCountry} aria-invalid={locationTouched && !residenceCountry || undefined} onChange={(e) => {
+                  const value = e.target.value;
+                  setResidenceCountry(value);
+                  saveLocation.mutate({ residenceCountry: value, residenceCity });
+                }}>
+                  <option value="">Choisir un pays…</option>
+                  {countries.map((country) => <option key={country.code} value={country.code}>{country.name}</option>)}
+                </select>
+                {locationTouched && !residenceCountry && <p role="alert" className="mt-1 text-sm font-semibold text-[var(--st-danger)]">Choisissez votre pays.</p>}
+              </div>
+              <div>
+                <label htmlFor="residence-city" className="mb-1.5 block font-semibold text-brand-ink">Ville où vous vous trouvez <span className="ml-2 text-sm font-normal text-brand-ink-2">Obligatoire</span></label>
+                <input id="residence-city" className="field-input" autoComplete="address-level2" maxLength={100} value={residenceCity} aria-invalid={locationTouched && !residenceCity.trim() || undefined} onChange={(e) => setResidenceCity(e.target.value)} onBlur={() => saveLocation.mutate({ residenceCountry, residenceCity: residenceCity.trim() })} />
+                {locationTouched && !residenceCity.trim() && <p role="alert" className="mt-1 text-sm font-semibold text-[var(--st-danger)]">Indiquez votre ville.</p>}
+              </div>
+            </div>
+            {fields.length > 0 && (
               <div className="mt-6 grid gap-5 md:grid-cols-2">
                 {fields.map((f) => {
                   const invalid = touched[f.id] && f.required && !values[f.id]?.trim();
@@ -411,10 +449,12 @@ function Wizard({ dossier, queryKey }: { dossier: Dossier; queryKey: string[] })
             <h2 id="step-review" className="title-3 text-brand-ink">Vérifiez avant d'envoyer</h2>
             <p className="mt-1 text-brand-ink-2">Une fois transmis, le dossier ne peut plus être modifié, sauf si vous le retirez avant sa prise en charge.</p>
 
-            {(missingFields.length > 0 || missingDocs.length > 0) && (
+            {(missingFields.length > 0 || missingDocs.length > 0 || !residenceCountry || !residenceCity.trim()) && (
               <Notice tone="warning" icon={<AlertTriangle />} title="Il manque encore des éléments" className="mt-6">
                 <ul className="mt-1 list-disc space-y-1 pl-5">
                   {missingFields.map((f) => <li key={f.id}>{f.label}</li>)}
+                  {!residenceCountry && <li>Pays où vous vous trouvez</li>}
+                  {!residenceCity.trim() && <li>Ville où vous vous trouvez</li>}
                   {missingDocs.map((d) => <li key={d.id}>{d.name}</li>)}
                 </ul>
               </Notice>
@@ -429,6 +469,8 @@ function Wizard({ dossier, queryKey }: { dossier: Dossier; queryKey: string[] })
                   </Button>
                 </div>
                 <dl className="mt-2 divide-y divide-brand-line rounded-xl border border-brand-line">
+                  <div className="grid gap-1 px-4 py-3 sm:grid-cols-[220px_1fr]"><dt className="text-brand-ink-2">Pays</dt><dd className="font-semibold text-brand-ink">{countryName(residenceCountry)}</dd></div>
+                  <div className="grid gap-1 px-4 py-3 sm:grid-cols-[220px_1fr]"><dt className="text-brand-ink-2">Ville</dt><dd className="font-semibold text-brand-ink">{residenceCity || "Non renseignée"}</dd></div>
                   {fields.map((f) => (
                     <div key={f.id} className="grid gap-1 px-4 py-3 sm:grid-cols-[220px_1fr]">
                       <dt className="text-brand-ink-2">{f.label}</dt>
@@ -514,7 +556,7 @@ function Wizard({ dossier, queryKey }: { dossier: Dossier; queryKey: string[] })
                 <Button
                   size="lg"
                   loading={submit.isPending}
-                  disabled={!certified || !mandate || missingFields.length > 0 || missingDocs.length > 0}
+                  disabled={!certified || !mandate || !residenceCountry || !residenceCity.trim() || missingFields.length > 0 || missingDocs.length > 0}
                   onClick={() => {
                     setSubmitError(null);
                     submit.mutate();
@@ -526,7 +568,7 @@ function Wizard({ dossier, queryKey }: { dossier: Dossier; queryKey: string[] })
                 <Button
                   size="lg"
                   loading={checkout.isPending}
-                  disabled={!price || payConfig?.enabled === false || !certified || !mandate || missingFields.length > 0 || missingDocs.length > 0}
+                  disabled={!price || payConfig?.enabled === false || !certified || !mandate || !residenceCountry || !residenceCity.trim() || missingFields.length > 0 || missingDocs.length > 0}
                   onClick={() => {
                     setSubmitError(null);
                     checkout.mutate();
@@ -606,10 +648,12 @@ function TrackingView({ dossier, isAgent, queryKey }: { dossier: Dossier; isAgen
 
       {isAgent && <AgentControls dossier={dossier} onDone={invalidate} />}
 
-      {fields.length > 0 && (
+      {(fields.length > 0 || dossier.residenceCountry || dossier.residenceCity) && (
         <section className="rounded-2xl bg-white p-5 shadow-card sm:p-6" aria-labelledby="info-title">
           <h2 id="info-title" className="font-display text-lg font-bold text-brand-ink">Informations transmises</h2>
           <dl className="mt-4 grid gap-3 sm:grid-cols-2">
+            <div className="rounded-xl bg-brand-mist p-3"><dt className="text-sm text-brand-ink-2">Pays</dt><dd className="font-semibold text-brand-ink">{countryName(dossier.residenceCountry)}</dd></div>
+            <div className="rounded-xl bg-brand-mist p-3"><dt className="text-sm text-brand-ink-2">Ville</dt><dd className="font-semibold text-brand-ink">{dossier.residenceCity || "Non renseignée"}</dd></div>
             {fields.map((f) => (
               <div key={f.id} className="rounded-xl bg-brand-mist p-3">
                 <dt className="text-sm text-brand-ink-2">{f.label}</dt>
