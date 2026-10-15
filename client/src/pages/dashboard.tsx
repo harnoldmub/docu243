@@ -1,6 +1,4 @@
 import { useQuery } from "@tanstack/react-query";
-import { formatDistanceToNow } from "date-fns";
-import { fr } from "date-fns/locale";
 import { Link } from "wouter";
 import { ArrowRight, Bell, Files, FolderOpen, HelpCircle, Plus } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
@@ -22,13 +20,8 @@ export type MyApplication = {
 
 type Note = { id: string; title: string; message: string; readAt: string | null; createdAt: string | null; metadata?: { applicationId?: string } | null };
 
-export function relative(date?: string | null) {
-  if (!date) return "";
-  const d = new Date(date);
-  // Guard against small clock differences between the database and the browser.
-  if (d.getTime() > Date.now()) return "à l'instant";
-  return formatDistanceToNow(d, { addSuffix: true, locale: fr });
-}
+export { relative } from "@/lib/dates";
+import { relative } from "@/lib/dates";
 
 export default function DashboardPage() {
   return (
@@ -205,7 +198,7 @@ export function DossierRow({ app, highlight }: { app: MyApplication; highlight?:
     <article
       className={cn(
         "group relative rounded-2xl border bg-white p-5 transition-[border-color,box-shadow] duration-200 hover:shadow-raised focus-within:border-brand-royal",
-        highlight ? "border-brand-yellow border-l-[6px]" : "border-brand-line",
+        highlight ? "border-brand-yellow" : "border-brand-line",
       )}
     >
       <div className="flex flex-wrap items-start justify-between gap-3">

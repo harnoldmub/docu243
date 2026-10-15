@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { useQuery } from "@tanstack/react-query";
 import * as Dialog from "@radix-ui/react-dialog";
-import { Bell, ChevronDown, FolderOpen, LogOut, Menu, ShieldCheck, User as UserIcon, X, Files } from "lucide-react";
+import { ChevronDown, FolderOpen, LogOut, Menu, ShieldCheck, User as UserIcon, X, Files } from "lucide-react";
 import { useAuth, isStaffRole } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
+import { NotificationsMenu } from "@/components/notifications-menu";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,8 +15,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { authHref } from "@/lib/auth-links";
 import { cn } from "@/lib/utils";
-
-type Note = { id: string; readAt?: string | null };
 
 export function Logo({ variant = "color", className }: { variant?: "color" | "white"; className?: string }) {
   const base = variant === "white" ? "/logo-white" : "/logo";
@@ -34,15 +32,6 @@ export function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const isStaff = isStaffRole(user?.role);
-
-  const { data: notifications = [] } = useQuery<Note[]>({
-    queryKey: ["/api/notifications"],
-    enabled: !!user,
-    staleTime: 30_000,
-    refetchInterval: user ? 60_000 : false,
-    refetchOnWindowFocus: true,
-  });
-  const unread = notifications.filter((n) => !n.readAt).length;
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 4);
@@ -109,18 +98,7 @@ export function Header() {
         <div className="flex items-center gap-2">
           {user ? (
             <>
-              <Link
-                href="/notifications"
-                className="relative inline-flex h-11 w-11 items-center justify-center rounded-xl text-brand-ink transition-colors hover:bg-brand-mist"
-                aria-label={unread ? `Notifications, ${unread} non lue${unread > 1 ? "s" : ""}` : "Notifications"}
-              >
-                <Bell className="h-5 w-5" aria-hidden="true" />
-                {unread > 0 && (
-                  <span className="absolute right-1.5 top-1.5 flex min-w-[18px] items-center justify-center rounded-full bg-brand-red px-1 text-[11px] font-bold leading-[18px] text-white">
-                    {unread > 9 ? "9+" : unread}
-                  </span>
-                )}
-              </Link>
+              <NotificationsMenu />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button className="hidden min-h-11 items-center gap-2 rounded-xl px-2 text-left transition-colors hover:bg-brand-mist sm:inline-flex">

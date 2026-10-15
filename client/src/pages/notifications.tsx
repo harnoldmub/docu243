@@ -54,11 +54,13 @@ function Notifications() {
         ) : (
           <ul className="space-y-2">
             {data.map((n) => (
-              <li key={n.id} className={cn("rounded-2xl border bg-white p-5", n.readAt ? "border-brand-line" : "border-brand-royal/40 border-l-[6px] border-l-brand-royal")}>
+              <li key={n.id} className="rounded-2xl border border-brand-line bg-white p-5">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="font-semibold text-brand-ink">
-                      {!n.readAt && <span className="sr-only">Non lue : </span>}
+                    <p className={cn("flex items-center gap-2", n.readAt ? "font-semibold text-brand-ink-2" : "font-bold text-brand-ink")}>
+                      {!n.readAt && (
+                        <span className="rounded-full bg-brand-red px-2 py-0.5 text-xs font-bold text-white">Nouveau</span>
+                      )}
                       {n.title}
                     </p>
                     <p className="mt-1 text-[0.9375rem] text-brand-ink-2">{n.message}</p>
