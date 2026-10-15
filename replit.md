@@ -43,7 +43,9 @@ Preferred communication style: Simple, everyday language.
 ## Environnement
 
 - `DATABASE_URL` (obligatoire), `SESSION_SECRET` (obligatoire en production), `PORT`.
-- `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` : paiement. Sans clé, le paiement est désactivé et le site l'indique.
+- `STRIPE_SECRET_KEY=sk_test_...` : active Stripe Checkout en mode test. Une clé live est refusée au démarrage ; sans clé, le paiement est désactivé et le site l'indique.
+- `STRIPE_WEBHOOK_SECRET=whsec_...` : secret de signature du webhook de test. Configurer dans Stripe l'URL `https://<domaine>/api/stripe/webhook` et les événements indiqués ci-dessus. En local, utiliser Stripe CLI pour transmettre les événements à `/api/stripe/webhook` et reprendre son secret `whsec_...`.
+- Les variables doivent être présentes dans l'environnement du processus serveur ; le fichier `.env` local n'est pas chargé automatiquement par `npm run dev`.
 - `PUBLIC_URL=https://mesdemarches.cd` : adresse utilisée pour les retours de paiement Stripe.
 - Développement local sur une base séparée : `DATABASE_URL=postgresql://localhost/mesdemarches_dev PORT=5055 npm run dev`.
 - Test de bout en bout : `BASE_URL=http://localhost:5055 npm run test:smoke` (crée un compte citoyen de test, utilise `SMOKE_ADMIN_EMAIL` / `SMOKE_ADMIN_PASSWORD`).

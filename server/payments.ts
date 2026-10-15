@@ -5,8 +5,12 @@ import { db, pool } from "./db";
 import { storage } from "./storage";
 import { payments, type Procedure } from "@shared/schema";
 
-// Stripe is enabled only when its keys are configured.
-const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null;
+// Keep payments in Stripe test mode until live payments are explicitly enabled.
+const stripeKey = process.env.STRIPE_SECRET_KEY;
+if (stripeKey && !stripeKey.startsWith("sk_test_")) {
+  throw new Error("STRIPE_SECRET_KEY doit être une clé Stripe de test (sk_test_).");
+}
+const stripe = stripeKey ? new Stripe(stripeKey) : null;
 export const paymentsEnabled = () => !!stripe;
 
 /** Official base price + service fee, or null when the base price is not set. */

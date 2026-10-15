@@ -26,7 +26,7 @@ Contrastes vérifiés : blanc sur royal 6,3:1, encre sur jaune 11,8:1, texte sec
 
 ## Bande tricolore
 
-`.tricolor` : bleu royal traversé d'une diagonale rouge bordée de jaune, comme sur les sites institutionnels congolais. En tête de chaque page (6 px), sous les en-têtes bleus (8 px), en haut du pied de page et des blocs de statut.
+`.tricolor` : trois bandes égales, bleu ciel `#037FFF`, jaune `#F9D617` et rouge `#CD1022` (tokens `--flag-*`), comme sur les sites institutionnels congolais. En tête de chaque page (6 px), sous les en-têtes bleus (8 px), en haut du pied de page, des blocs de statut et du reçu.
 
 ## Typographie
 

@@ -27,6 +27,11 @@
   --md-ink-2: #526079;
   --md-line: #dce3ef;
 
+  /* Tricolour band (supplied artwork) */
+  --flag-blue: #037fff;
+  --flag-yellow: #f9d617;
+  --flag-red: #cd1022;
+
   --st-success: #0b7a4b;
   --st-success-bg: #e3f5ec;
   --st-warning: #7a4f00;
@@ -170,16 +175,14 @@
     .md-container { padding-inline: 2rem; }
   }
 
-  /* National tricolour band: royal blue crossed by a red diagonal edged in yellow. */
+  /* National tricolour band: three equal stripes, sky blue, yellow and red. */
   .tricolor {
     height: var(--tricolor-h, 6px);
     background: linear-gradient(
-      100deg,
-      var(--md-royal) 0 58%,
-      var(--md-yellow) 58% 61%,
-      var(--md-red) 61% 77%,
-      var(--md-yellow) 77% 80%,
-      var(--md-royal) 80% 100%
+      90deg,
+      var(--flag-blue) 0 33.333%,
+      var(--flag-yellow) 33.333% 66.666%,
+      var(--flag-red) 66.666% 100%
     );
   }
 
