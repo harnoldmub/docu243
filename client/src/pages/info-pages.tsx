@@ -1,9 +1,8 @@
 import { Link } from "wouter";
-import { ArrowRight, Ban, ExternalLink, Fingerprint, Landmark, Wallet } from "lucide-react";
+import { ArrowRight, Ban, CheckCircle2, ExternalLink, Fingerprint, Landmark, Wallet } from "lucide-react";
 import { FaqAccordion } from "@/components/faq";
 import { HowItWorksSteps } from "@/pages/home";
 import { APPLICATION_STATUS, StatusBadge } from "@/components/status-badge";
-import { AvailabilityBadge } from "@/components/procedure-card";
 import { Notice } from "@/components/states";
 import { useReveal } from "@/hooks/use-reveal";
 import { useProcedures } from "@/hooks/use-procedures";
@@ -31,16 +30,16 @@ export function PageHeader({ title, intro, tone = "deep", children }: { title: s
 
 export function HowItWorksPage() {
   useReveal();
-  const modes = [
-    { procedure: { status: "available", channel: "docu243" }, text: "Vous constituez votre dossier dans MesDémarches : informations, pièces, envoi et suivi." },
-    { procedure: { status: "coming_soon", channel: "external" }, text: "Le dépôt se fait sur le site de l'administration. La fiche vous aide à préparer les pièces et vous y conduit." },
-    { procedure: { status: "coming_soon", channel: "info" }, text: "La démarche se fait au guichet de l'administration. La fiche vous dit quoi apporter et où aller." },
-    { procedure: { status: "coming_soon", channel: "docu243" }, text: "La démarche n'est pas encore ouverte en ligne. Les informations sont indicatives." },
-  ] as const;
+  const promises = [
+    "Nous vérifions que votre dossier est complet avant de le déposer.",
+    "Nous effectuons la démarche auprès de l'administration et réglons les frais officiels pour vous.",
+    "Nous mettons à jour le statut de votre dossier à chaque étape et vous prévenons.",
+    "Nous vous disons quand votre présence est indispensable, et où vous présenter.",
+  ];
 
   return (
     <>
-      <PageHeader title="Comment ça marche" intro="De la recherche au retrait du document : ce que fait MesDémarches, et ce qui reste du ressort de l'administration." />
+      <PageHeader title="Comment ça marche" intro="Vous choisissez, vous envoyez vos documents et vous réglez en ligne. Notre équipe fait la démarche à votre place." />
       <section className="bg-white py-16 lg:py-24">
         <div className="md-container">
           <HowItWorksSteps />
@@ -48,15 +47,19 @@ export function HowItWorksPage() {
       </section>
 
       <section className="bg-brand-mist py-16 lg:py-24" aria-labelledby="modes-title">
-        <div className="md-container">
-          <h2 id="modes-title" className="display-2 max-w-2xl" data-reveal>
-            Quatre façons de faire une démarche
-          </h2>
-          <ul className="mt-10 grid gap-4 md:grid-cols-2">
-            {modes.map((m) => (
-              <li key={m.text} className="rounded-2xl bg-white p-6" data-reveal>
-                <AvailabilityBadge procedure={m.procedure} />
-                <p className="mt-3 text-brand-ink">{m.text}</p>
+        <div className="md-container grid gap-10 lg:grid-cols-[0.8fr_1.2fr]">
+          <div data-reveal>
+            <h2 id="modes-title" className="display-2">Ce que nous faisons pour vous</h2>
+            <p className="mt-4 text-brand-ink-2">
+              Vous payez le prix affiché sur la fiche : frais officiels de l'administration et frais de service MesDémarches (100 USD
+              pour le passeport, 20 ou 50 USD pour les autres démarches).
+            </p>
+          </div>
+          <ul className="space-y-3">
+            {promises.map((t) => (
+              <li key={t} className="flex gap-3 rounded-2xl bg-white p-5" data-reveal>
+                <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-brand-royal" aria-hidden="true" />
+                <span className="text-brand-ink">{t}</span>
               </li>
             ))}
           </ul>
@@ -89,9 +92,9 @@ export function HowItWorksPage() {
           </h2>
           <ul className="mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
             {[
-              { icon: Wallet, text: "Encaisser des paiements. Les frais se règlent auprès de l'administration." },
+              { icon: Wallet, text: "Garder vos coordonnées bancaires : le paiement par carte est traité par Stripe." },
               { icon: Fingerprint, text: "Collecter des données biométriques. L'enrôlement se fait dans les centres officiels." },
-              { icon: Landmark, text: "Décider à la place de l'administration. Les décisions et documents viennent d'elle." },
+              { icon: Landmark, text: "Décider à la place de l'administration : les décisions et les documents officiels viennent d'elle." },
               { icon: Ban, text: "Créer de faux reçus, QR codes ou numéros administratifs." },
             ].map((x) => (
               <li key={x.text} className="flex flex-col gap-3" data-reveal>

@@ -2,7 +2,17 @@ import type { PoolClient } from "pg";
 import { pool } from "./db";
 import { accentize } from "./accents";
 import { catalog as seedCatalog } from "./seed";
-import { existingContent, newProcedures, LEGACY_CATEGORY_MAP, type ProcedureContent } from "./catalog-content";
+import {
+  existingContent,
+  newProcedures,
+  LEGACY_CATEGORY_MAP,
+  SERVICE_FEES,
+  DEFAULT_SERVICE_FEE,
+  BASE_PRICES,
+  DEFAULT_FIELDS,
+  type ProcedureContent,
+} from "./catalog-content";
+import type { ProcedureGuide } from "@shared/schema";
 
 function log(msg: string) {
   console.log(`${new Date().toLocaleTimeString("fr-FR")} [migrate] ${msg}`);
@@ -21,6 +31,16 @@ const SCHEMA_SQL = `
   ALTER TABLE procedures ALTER COLUMN editorial_status SET DEFAULT 'draft';
   ALTER TABLE procedures ADD COLUMN IF NOT EXISTS verified_at timestamp;
   ALTER TABLE procedures ADD COLUMN IF NOT EXISTS guide jsonb;
+
+  ALTER TABLE procedures ADD COLUMN IF NOT EXISTS service_fee integer NOT NULL DEFAULT 20;
+
+  ALTER TABLE payments ADD COLUMN IF NOT EXISTS currency text;
+  ALTER TABLE payments ADD COLUMN IF NOT EXISTS official_amount integer;
+  ALTER TABLE payments ADD COLUMN IF NOT EXISTS service_fee integer;
+  ALTER TABLE payments ADD COLUMN IF NOT EXISTS checkout_session_id text;
+  ALTER TABLE payments ADD COLUMN IF NOT EXISTS receipt_number text;
+  CREATE UNIQUE INDEX IF NOT EXISTS payments_checkout_session_idx ON payments (checkout_session_id);
+  CREATE SEQUENCE IF NOT EXISTS receipt_seq;
 
   ALTER TABLE applications ADD COLUMN IF NOT EXISTS status_note text;
   ALTER TABLE applications ADD COLUMN IF NOT EXISTS requirements_snapshot jsonb;
@@ -44,28 +64,88 @@ const SCHEMA_SQL = `
   );
 `;
 
-const CONTENT_MIGRATION_ID = "2026-10-catalog-v1";
+const CONTENT_MIGRATIONS: Array<[string, (client: PoolClient) => Promise<void>]> = [
+  ["2026-10-catalog-v1", (c) => applyContent(c)],
+  ["2026-10-agency-v1", (c) => applyAgencyModel(c)],
+];
 
 export async function migrateSchema() {
   await pool.query(SCHEMA_SQL);
 }
 
 export async function migrateContent() {
-  const client = await pool.connect();
-  try {
-    const done = await client.query("SELECT 1 FROM app_migrations WHERE id = $1", [CONTENT_MIGRATION_ID]);
-    if (done.rowCount) return;
+  for (const [id, run] of CONTENT_MIGRATIONS) {
+    const client = await pool.connect();
+    try {
+      const done = await client.query("SELECT 1 FROM app_migrations WHERE id = $1", [id]);
+      if (done.rowCount) continue;
+      await client.query("BEGIN");
+      await run(client);
+      await client.query("INSERT INTO app_migrations (id) VALUES ($1)", [id]);
+      await client.query("COMMIT");
+      log(`Content migration ${id} applied.`);
+    } catch (err) {
+      await client.query("ROLLBACK").catch(() => {});
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+}
 
-    await client.query("BEGIN");
-    await applyContent(client);
-    await client.query("INSERT INTO app_migrations (id) VALUES ($1)", [CONTENT_MIGRATION_ID]);
-    await client.query("COMMIT");
-    log(`Content migration ${CONTENT_MIGRATION_ID} applied.`);
-  } catch (err) {
-    await client.query("ROLLBACK").catch(() => {});
-    throw err;
-  } finally {
-    client.release();
+// Every published procedure is now carried out by MesDémarches on the client's behalf.
+async function applyAgencyModel(client: PoolClient) {
+  const rows = await client.query("SELECT id, slug, editorial_status, guide FROM procedures");
+  for (const row of rows.rows) {
+    const fee = SERVICE_FEES[row.slug] ?? DEFAULT_SERVICE_FEE;
+    const base = BASE_PRICES[row.slug];
+    const guide: ProcedureGuide = row.guide ?? {};
+    if (base?.note) guide.feeNote = base.note;
+    const set: Record<string, unknown> = { service_fee: fee, guide: JSON.stringify(guide) };
+    if (row.editorial_status === "published") {
+      set.channel = "docu243";
+      set.status = "available";
+    }
+    if (base) {
+      set.cost = base.amount;
+      set.currency = "USD";
+      set.fee_status = "confirmed";
+    } else {
+      // Legacy amounts were entered in CDF without a source: they must be set again in USD.
+      set.fee_status = "unconfirmed";
+    }
+    await updateRow(client, row.id, set);
+
+    // Give every procedure a form our team can work from.
+    const docs = await client.query("SELECT 1 FROM procedure_required_documents WHERE procedure_id = $1 LIMIT 1", [row.id]);
+    if (!docs.rowCount) {
+      const items = (guide.checklist ?? []).filter((i) => i.kind === "upload" || i.kind === "original");
+      let order = 1;
+      for (const item of items) {
+        await client.query(
+          `INSERT INTO procedure_required_documents (procedure_id, name, description, required, accepted_formats, max_size_mb, "order")
+           VALUES ($1, $2, $3, $4, $5, 5, $6)`,
+          [
+            row.id,
+            item.label,
+            item.requirement === "required" ? (item.description ?? "Copie lisible du document.") : `Selon votre situation. ${item.description ?? ""}`.trim(),
+            item.requirement === "required",
+            ["pdf", "jpg", "png"],
+            order++,
+          ],
+        );
+      }
+    }
+    const fields = await client.query("SELECT 1 FROM procedure_fields WHERE procedure_id = $1 LIMIT 1", [row.id]);
+    if (!fields.rowCount) {
+      let order = 1;
+      for (const f of DEFAULT_FIELDS) {
+        await client.query(
+          `INSERT INTO procedure_fields (procedure_id, label, type, required, "order") VALUES ($1, $2, $3, $4, $5)`,
+          [row.id, f.label, f.type, f.required, order++],
+        );
+      }
+    }
   }
 }
 

@@ -15,7 +15,7 @@ import { Timeline } from "@/components/timeline";
 import { DocumentStatusBadge, StatusBadge, statusInfo } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { ErrorState, Notice } from "@/components/states";
-import { feeLabel } from "@/lib/procedures";
+import { formatMoney, priceOf } from "@/lib/procedures";
 import { relative } from "@/pages/dashboard";
 import { cn } from "@/lib/utils";
 
@@ -27,7 +27,20 @@ type Dossier = Application & {
   user?: { prenom: string; nom: string; email: string; phone: string };
 };
 
-const STEPS = [{ title: "Informations" }, { title: "Pièces" }, { title: "Vérification et envoi" }];
+const STEPS = [{ title: "Informations" }, { title: "Pièces" }, { title: "Vérification et paiement" }];
+
+export type PaymentRow = {
+  id: string;
+  amount: number;
+  currency: string | null;
+  officialAmount: number | null;
+  serviceFee: number | null;
+  status: string;
+  receiptNumber: string | null;
+  transactionRef: string | null;
+  paidAt: string | null;
+  createdAt: string | null;
+};
 const EDITABLE = ["draft", "pending_user_action"];
 
 export default function ApplicationDetailPage() {
@@ -45,6 +58,8 @@ function ApplicationDetail() {
   const isAgent = isStaffRole(user?.role);
   const key = [`/api/applications/${id}`];
   const { data: dossier, isLoading, isError, error, refetch } = useQuery<Dossier>({ queryKey: key, staleTime: 0 });
+
+  const payState = usePaymentReturn(id, key);
 
   useEffect(() => {
     if (dossier?.procedure) document.title = `${dossier.procedure.title} (${dossier.reference}) — MesDémarches`;
@@ -111,6 +126,21 @@ function ApplicationDetail() {
 
       <div className="md-container grid gap-8 pt-8 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="min-w-0 space-y-6">
+          {payState === "checking" && (
+            <Notice tone="info" icon={<Wallet />} title="Confirmation du paiement en cours">
+              Nous vérifions votre paiement auprès de Stripe. Cette page se met à jour automatiquement.
+            </Notice>
+          )}
+          {payState === "pending" && (
+            <Notice tone="warning" icon={<Wallet />} title="Paiement pas encore confirmé">
+              Stripe n'a pas encore confirmé votre paiement. Revenez sur cette page dans quelques minutes ; vous recevrez une notification dès la confirmation.
+            </Notice>
+          )}
+          {payState === "cancelled" && (
+            <Notice tone="neutral" icon={<Wallet />} title="Paiement annulé">
+              Aucun montant n'a été débité. Votre dossier reste en brouillon : vous pouvez payer quand vous le souhaitez.
+            </Notice>
+          )}
           {editable ? <Wizard dossier={dossier} queryKey={key} /> : <TrackingView dossier={dossier} isAgent={isAgent} queryKey={key} />}
         </div>
         <aside className="space-y-6">
@@ -144,7 +174,25 @@ function Wizard({ dossier, queryKey }: { dossier: Dossier; queryKey: string[] })
   );
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [certified, setCertified] = useState(false);
+  const [mandate, setMandate] = useState(false);
   const [submitError, setSubmitError] = useState<{ message: string; missingFields?: string[]; missingDocs?: string[] } | null>(null);
+  const { data: paymentRows = [] } = useQuery<PaymentRow[]>({ queryKey: [`/api/applications/${dossier.id}/payments`], staleTime: 0 });
+  const { data: payConfig } = useQuery<{ enabled: boolean }>({ queryKey: ["/api/payments/config"] });
+  // Dossiers already transmitted once (before online payment existed) can be sent again without paying.
+  const hasPayment = paymentRows.some((p) => p.status === "succeeded");
+  const paid = hasPayment || !!dossier.submittedAt;
+  const price = dossier.procedure ? priceOf(dossier.procedure) : null;
+
+  const checkout = useMutation({
+    mutationFn: async () => (await apiRequest("POST", `/api/applications/${dossier.id}/checkout`)).json() as Promise<{ url: string }>,
+    onSuccess: ({ url }) => {
+      window.location.assign(url);
+    },
+    onError: (e) => {
+      const data = e instanceof ApiError ? e.data : {};
+      setSubmitError({ message: e.message, missingFields: data.missingFields as string[] | undefined, missingDocs: data.missingDocs as string[] | undefined });
+    },
+  });
 
   const save = useMutation({
     mutationFn: async (fieldValues: Array<{ fieldId: string; value: string }>) => apiRequest("PATCH", `/api/applications/${dossier.id}`, { fieldValues }),
@@ -218,7 +266,6 @@ function Wizard({ dossier, queryKey }: { dossier: Dossier; queryKey: string[] })
     await queryClient.invalidateQueries({ queryKey });
   };
 
-  const fee = dossier.procedure ? feeLabel(dossier.procedure) : null;
 
   return (
     <>
@@ -226,11 +273,11 @@ function Wizard({ dossier, queryKey }: { dossier: Dossier; queryKey: string[] })
         <Notice tone="warning" icon={<AlertTriangle />} title="Correction demandée">
           {dossier.statusNote ? (
             <>
-              <span className="font-semibold">Message de l'agent : </span>
+              <span className="font-semibold">Message de notre équipe : </span>
               {dossier.statusNote}
             </>
           ) : (
-            "Un agent demande des corrections. Vérifiez vos informations et les pièces signalées, puis transmettez de nouveau le dossier."
+            "Notre équipe demande des corrections. Vérifiez vos informations et les pièces signalées, puis transmettez de nouveau le dossier."
           )}
         </Notice>
       )}
@@ -411,12 +458,37 @@ function Wizard({ dossier, queryKey }: { dossier: Dossier; queryKey: string[] })
                   })}
                 </ul>
               </div>
-              {fee && (
-                <Notice tone="neutral" icon={<Wallet />} title={`Frais : ${fee.label}`}>
-                  {dossier.procedure?.guide?.feeNote ?? fee.hint}
-                  <span className="mt-1 block">MesDémarches n'encaisse aucun paiement : les frais se règlent auprès de l'administration.</span>
-                </Notice>
-              )}
+              <section aria-labelledby="price-title" className="rounded-xl border border-brand-line p-4">
+                <h3 id="price-title" className="font-sans text-base font-bold text-brand-ink">Prix de la démarche</h3>
+                {price ? (
+                  <dl className="mt-2 space-y-1.5 text-[0.9375rem]">
+                    <div className="flex justify-between gap-4">
+                      <dt className="text-brand-ink-2">Frais officiels</dt>
+                      <dd className="font-semibold">{formatMoney(price.official, "USD")}</dd>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <dt className="text-brand-ink-2">Frais de service MesDémarches</dt>
+                      <dd className="font-semibold">{formatMoney(price.service, "USD")}</dd>
+                    </div>
+                    <div className="flex justify-between gap-4 border-t border-brand-line pt-2 text-base">
+                      <dt className="font-bold">Total</dt>
+                      <dd className="font-bold">{formatMoney(price.total, "USD")}</dd>
+                    </div>
+                    {dossier.procedure?.guide?.feeNote && <p className="pt-1 text-sm text-brand-ink-2">{dossier.procedure.guide.feeNote}</p>}
+                  </dl>
+                ) : (
+                  <p className="mt-2 text-[0.9375rem] text-brand-ink-2">
+                    Le tarif de cette démarche est en cours de fixation. Vous pourrez régler et transmettre votre dossier dès qu'il sera publié.
+                  </p>
+                )}
+                {hasPayment && <p className="mt-3 flex items-center gap-2 font-semibold text-[var(--st-success)]"><Check className="h-4 w-4" aria-hidden="true" /> Déjà réglé</p>}
+              </section>
+              <label className="flex cursor-pointer gap-3 rounded-xl bg-brand-mist p-4">
+                <input type="checkbox" checked={mandate} onChange={(e) => setMandate(e.target.checked)} className="mt-1 h-5 w-5 shrink-0 accent-[var(--md-royal)]" />
+                <span className="text-brand-ink">
+                  J'autorise MesDémarches à effectuer cette démarche en mon nom auprès de l'administration compétente, avec les informations et les pièces transmises.
+                </span>
+              </label>
               <label className="flex cursor-pointer gap-3 rounded-xl bg-brand-mist p-4">
                 <input type="checkbox" checked={certified} onChange={(e) => setCertified(e.target.checked)} className="mt-1 h-5 w-5 shrink-0 accent-[var(--md-royal)]" />
                 <span className="text-brand-ink">Je certifie que les informations et les pièces transmises sont exactes et authentiques.</span>
@@ -438,21 +510,39 @@ function Wizard({ dossier, queryKey }: { dossier: Dossier; queryKey: string[] })
               <Button variant="ghost" size="lg" onClick={() => setStep(1)}>
                 <ArrowLeft aria-hidden="true" /> Retour
               </Button>
-              <Button
-                size="lg"
-                loading={submit.isPending}
-                disabled={!certified || missingFields.length > 0 || missingDocs.length > 0}
-                onClick={() => {
-                  setSubmitError(null);
-                  submit.mutate();
-                }}
-              >
-                {!submit.isPending && <Send aria-hidden="true" />} Transmettre mon dossier
-              </Button>
+              {paid ? (
+                <Button
+                  size="lg"
+                  loading={submit.isPending}
+                  disabled={!certified || !mandate || missingFields.length > 0 || missingDocs.length > 0}
+                  onClick={() => {
+                    setSubmitError(null);
+                    submit.mutate();
+                  }}
+                >
+                  {!submit.isPending && <Send aria-hidden="true" />} Transmettre mon dossier
+                </Button>
+              ) : (
+                <Button
+                  size="lg"
+                  loading={checkout.isPending}
+                  disabled={!price || payConfig?.enabled === false || !certified || !mandate || missingFields.length > 0 || missingDocs.length > 0}
+                  onClick={() => {
+                    setSubmitError(null);
+                    checkout.mutate();
+                  }}
+                >
+                  {!checkout.isPending && <Wallet aria-hidden="true" />} {price ? `Payer ${formatMoney(price.total, "USD")} et transmettre` : "Paiement indisponible"}
+                </Button>
+              )}
             </div>
-            {!certified && missingFields.length === 0 && missingDocs.length === 0 && (
-              <p className="mt-3 text-right text-sm text-brand-ink-2">Cochez la déclaration pour pouvoir transmettre.</p>
+            {payConfig?.enabled === false && !paid && (
+              <p className="mt-3 text-right text-sm text-brand-ink-2">Le paiement en ligne n'est pas encore activé.</p>
             )}
+            {(!certified || !mandate) && missingFields.length === 0 && missingDocs.length === 0 && (
+              <p className="mt-3 text-right text-sm text-brand-ink-2">Cochez les deux déclarations pour continuer.</p>
+            )}
+            {!paid && price && payConfig?.enabled && <p className="mt-2 text-right text-sm text-brand-ink-2">Vous serez redirigé vers Stripe pour un paiement sécurisé par carte.</p>}
           </section>
         )}
       </div>
@@ -492,7 +582,7 @@ function TrackingView({ dossier, isAgent, queryKey }: { dossier: Dossier; isAgen
           <p className="mt-3 max-w-2xl text-lg text-white/90">{info.next}</p>
           {dossier.statusNote && (
             <p className="mt-4 rounded-xl bg-white/10 p-4">
-              <span className="font-semibold text-brand-yellow">Message de l'agent : </span>
+              <span className="font-semibold text-brand-yellow">Message de notre équipe : </span>
               {dossier.statusNote}
             </p>
           )}
@@ -505,12 +595,14 @@ function TrackingView({ dossier, isAgent, queryKey }: { dossier: Dossier; isAgen
               <Button variant="on-blue" loading={retract.isPending} onClick={() => retract.mutate()} data-testid="button-retract-dossier">
                 {!retract.isPending && <RotateCcw aria-hidden="true" />} Retirer et modifier mon dossier
               </Button>
-              <p className="mt-2 text-sm text-white/75">Possible tant qu'aucun agent n'a commencé l'examen.</p>
+              <p className="mt-2 text-sm text-white/75">Possible tant que notre équipe n'a pas commencé la démarche. Votre paiement reste acquis pour ce dossier.</p>
             </div>
           )}
         </div>
         <div className="tricolor" aria-hidden="true" />
       </section>
+
+      <PaymentSummary dossierId={dossier.id} />
 
       {isAgent && <AgentControls dossier={dossier} onDone={invalidate} />}
 
@@ -566,6 +658,7 @@ function TrackingView({ dossier, isAgent, queryKey }: { dossier: Dossier; isAgen
 
 const AGENT_ACTIONS: Array<{ status: string; label: string; needsNote?: boolean }> = [
   { status: "under_review", label: "Prendre en charge" },
+  { status: "received", label: "Déposé à l'administration" },
   { status: "pending_user_action", label: "Demander une correction", needsNote: true },
   { status: "pending_payment", label: "Demander un paiement", needsNote: true },
   { status: "approved", label: "Approuver" },
@@ -619,7 +712,7 @@ function AgentControls({ dossier, onDone }: { dossier: Dossier; onDone: () => vo
       </div>
       {error && <p role="alert" className="mt-3 text-sm font-semibold text-[var(--st-danger)]">{error}</p>}
       <p className="mt-3 flex items-center gap-1.5 text-sm text-brand-ink-2">
-        <Info className="h-4 w-4" aria-hidden="true" /> Le paiement n'est pas encaissé par MesDémarches : précisez les modalités dans le message.
+        <Info className="h-4 w-4" aria-hidden="true" /> Le client a réglé les frais officiels et de service en ligne. Pour un complément, précisez le montant et la marche à suivre.
       </p>
     </section>
   );
@@ -655,5 +748,72 @@ function DocumentReview({ docId, onDone }: { docId: string; onDone: () => void }
       </div>
       {error && <p role="alert" className="text-sm font-semibold text-[var(--st-danger)]">{error}</p>}
     </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+
+/** Confirms a Stripe payment when the client comes back from Checkout. */
+function usePaymentReturn(applicationId: string, queryKey: string[]) {
+  const params = new URLSearchParams(window.location.search);
+  const flag = params.get("paiement");
+  const sessionId = params.get("session_id");
+  const [state, setState] = useState<"idle" | "checking" | "pending" | "cancelled" | "done">(
+    flag === "retour" && sessionId ? "checking" : flag === "annule" ? "cancelled" : "idle",
+  );
+
+  useEffect(() => {
+    if (flag !== "retour" || !sessionId) return;
+    let attempts = 0;
+    let timer: number | undefined;
+    const check = async () => {
+      attempts += 1;
+      try {
+        const res = await apiRequest("POST", "/api/payments/verify", { sessionId });
+        const { status } = await res.json();
+        if (status === "succeeded") {
+          setState("done");
+          queryClient.invalidateQueries({ queryKey });
+          queryClient.invalidateQueries({ queryKey: [`/api/applications/${applicationId}/payments`] });
+          queryClient.invalidateQueries({ queryKey: ["/api/applications/me"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
+          window.history.replaceState(window.history.state, "", `/application/${applicationId}`);
+          return;
+        }
+      } catch {
+        /* retried below */
+      }
+      if (attempts < 6) timer = window.setTimeout(check, 2500);
+      else setState("pending");
+    };
+    check();
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [flag, sessionId, applicationId]);
+
+  return state;
+}
+
+function PaymentSummary({ dossierId }: { dossierId: string }) {
+  const { data = [] } = useQuery<PaymentRow[]>({ queryKey: [`/api/applications/${dossierId}/payments`], staleTime: 0 });
+  const paid = data.find((p) => p.status === "succeeded");
+  if (!paid) return null;
+  return (
+    <section className="rounded-2xl bg-white p-5 shadow-card sm:p-6" aria-labelledby="pay-title">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 id="pay-title" className="font-display text-lg font-bold text-brand-ink">Paiement</h2>
+          <p className="mt-1 text-[0.9375rem] text-brand-ink-2">
+            Reçu {paid.receiptNumber} · {paid.paidAt && format(new Date(paid.paidAt), "d MMMM yyyy", { locale: fr })}
+          </p>
+        </div>
+        <Button asChild variant="outline" size="sm">
+          <Link href={`/application/${dossierId}/recu`}>
+            <FileText aria-hidden="true" /> Voir le reçu
+          </Link>
+        </Button>
+      </div>
+      <p className="mt-3 font-semibold text-brand-ink">{formatMoney(paid.amount / 100, paid.currency ?? "USD")} réglés</p>
+    </section>
   );
 }

@@ -1302,3 +1302,62 @@ export const LEGACY_CATEGORY_MAP: Record<string, string> = {
   Urbanisme: CATEGORIES.land,
   Foncier: CATEGORIES.land,
 };
+
+// ---------------------------------------------------------------------------
+// Agency model (October 2026): MesDémarches carries out every procedure on the
+// client's behalf. Price = official base price + MesDémarches service fee.
+// ---------------------------------------------------------------------------
+
+/** Service fee in US dollars. Passport: 100, complex procedures: 50, others: 20. */
+export const SERVICE_FEES: Record<string, number> = {
+  "passeport-biometrique": 100,
+  ...Object.fromEntries(
+    [
+      "creation-d-entreprise",
+      "creation-entreprise-individuelle",
+      "registre-de-commerce",
+      "modification-entreprise",
+      "attestation-fiscale",
+      "certificat-enregistrement-immobilier",
+      "mutation-de-propriete",
+      "permis-de-construire",
+      "immatriculation-de-vehicule",
+      "mutation-vehicule",
+      "carte-rose",
+      "permis-de-conduire",
+      "certificat-de-nationalite",
+      "declaration-de-succession",
+      "legalisation-de-document",
+      "autorisation-exercer-profession-liberale",
+      "equivalence-diplome",
+      "transcription-acte-etranger",
+      "tutelle-autorite-parentale",
+      "jugement-suppletif",
+    ].map((slug) => [slug, 50]),
+  ),
+};
+export const DEFAULT_SERVICE_FEE = 20;
+
+const GOMBE = "Tarif de la commune de Gombe (Kinshasa) publié par le catalogue officiel des services publics. Il peut différer dans une autre commune.";
+
+/** Official base prices in USD, single value per procedure, with their justification. */
+export const BASE_PRICES: Record<string, { amount: number; note?: string }> = {
+  "passeport-biometrique": { amount: 75 },
+  "certificat-de-nationalite": { amount: 40 },
+  "creation-d-entreprise": { amount: 70, note: "Tarif ANAPI pour des statuts sous seing privé (110 USD avec des statuts notariés)." },
+  "creation-entreprise-individuelle": { amount: 40 },
+  "acte-de-naissance": { amount: 10, note: GOMBE },
+  "certificat-de-residence": { amount: 1, note: GOMBE },
+  "bonne-vie-et-moeurs": { amount: 10, note: GOMBE },
+  "acte-de-mariage": { amount: 10, note: GOMBE },
+  "attestation-de-celibat": { amount: 10, note: GOMBE },
+  "acte-de-deces": { amount: 10, note: GOMBE },
+};
+
+/** Fields asked for a procedure that had none, so that our team can act for the client. */
+export const DEFAULT_FIELDS = [
+  { label: "Nom complet", type: "text", required: true },
+  { label: "Date de naissance", type: "date", required: true },
+  { label: "Adresse complète", type: "textarea", required: true },
+  { label: "Précisions sur votre demande", type: "textarea", required: false },
+];

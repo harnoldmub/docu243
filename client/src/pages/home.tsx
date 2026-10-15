@@ -66,7 +66,7 @@ function Hero({ trackHref }: { trackHref: string }) {
             </span>
           </h1>
           <p className="hero-rise lead mt-7 max-w-[34rem] text-brand-ink-2" style={{ animationDelay: "200ms" }}>
-            Trouvez votre démarche, préparez vos documents et suivez votre dossier depuis votre téléphone.
+            Choisissez votre démarche, envoyez vos documents depuis votre téléphone et réglez en ligne. Nous faisons la démarche à votre place, vous suivez chaque étape.
           </p>
           <div className="hero-rise mt-8 flex flex-col gap-3 sm:flex-row" style={{ animationDelay: "260ms" }}>
             <Button asChild size="xl">
@@ -147,7 +147,7 @@ function CommonProcedures() {
           <SectionHeading
             id="common-title"
             title="Démarches courantes"
-            intro="Les frais, délais et lieux de dépôt viennent des sources officielles citées sur chaque fiche."
+            intro="Prix total affiché : frais officiels et frais de service MesDémarches. Nous nous chargeons du reste."
           />
           <Link href="/catalogue" className="link-arrow shrink-0" data-reveal>
             Voir toutes les démarches <ArrowRight className="h-4 w-4" aria-hidden="true" />
@@ -253,17 +253,17 @@ function Goals() {
 export const HOW_STEPS = [
   {
     title: "Choisissez votre démarche",
-    text: "Cherchez par nom ou par projet. La fiche indique l'administration, les frais publiés, le délai et la façon de déposer votre dossier.",
+    text: "Cherchez par nom ou par projet. La fiche indique les pièces à fournir, le délai et le prix total : frais officiels et frais de service.",
     icon: Search,
   },
   {
-    title: "Préparez et transmettez vos documents",
-    text: "Répondez à quelques questions pour obtenir votre liste de pièces. Pour les démarches ouvertes en ligne, envoyez vos pièces depuis votre téléphone ; sinon, la fiche vous oriente vers le bon portail ou guichet.",
+    title: "Envoyez vos documents et réglez",
+    text: "Photographiez vos pièces avec votre téléphone, vérifiez votre dossier puis payez en ligne par carte. Vous recevez aussitôt la confirmation et votre reçu.",
     icon: FileUp,
   },
   {
-    title: "Suivez les prochaines étapes",
-    text: "Votre dossier affiche son statut et ce qu'on attend de vous. Quand un rendez-vous ou un retrait en personne est nécessaire, la fiche et le dossier vous le disent.",
+    title: "Nous faisons la démarche",
+    text: "Notre équipe dépose votre dossier auprès de l'administration et met à jour son statut. Si votre présence est indispensable, par exemple pour un enrôlement biométrique, nous vous le disons.",
     icon: Bell,
   },
 ];
@@ -298,7 +298,7 @@ function HowItWorks() {
     <section className="bg-white py-20 lg:py-28" aria-labelledby="how-title" id="comment-ca-marche">
       <div className="md-container">
         <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-end">
-          <SectionHeading id="how-title" title={<>Trois étapes, <br className="hidden sm:block" />sans détour.</>} />
+          <SectionHeading id="how-title" title={<>Trois étapes, <br className="hidden sm:block" />nous faisons le reste.</>} />
           <div className="relative overflow-hidden rounded-[22px]" data-reveal>
             <Picture name="guichet" sizes="(min-width: 1024px) 640px, 100vw" className="aspect-[16/9]" />
             <p className="absolute bottom-3 left-3 right-3 flex items-start gap-2 rounded-xl bg-white/95 p-3 text-sm text-brand-ink sm:right-auto sm:max-w-sm">
@@ -322,10 +322,10 @@ function HowItWorks() {
 
 function HumanSection() {
   const features = [
-    { icon: FileSearch, text: "Savoir quelles pièces préparer avant de vous déplacer, selon votre situation." },
-    { icon: MonitorSmartphone, text: "Constituer et transmettre votre dossier en ligne pour les démarches ouvertes dans MesDémarches." },
-    { icon: Bell, text: "Être prévenu à chaque changement de statut de votre dossier." },
-    { icon: RefreshCw, text: "Remplacer une pièce refusée sans refaire tout le dossier." },
+    { icon: FileSearch, text: "Une liste de pièces adaptée à votre situation, avant de commencer." },
+    { icon: MonitorSmartphone, text: "Votre dossier constitué en ligne et payé par carte, sans file d'attente." },
+    { icon: Bell, text: "Notre équipe s'occupe de l'administration et vous prévient à chaque étape." },
+    { icon: RefreshCw, text: "Une pièce à corriger ? Remplacez-la sans refaire tout le dossier ni payer de nouveau." },
   ];
   return (
     <section className="overflow-hidden bg-brand-mist py-20 lg:py-28" aria-labelledby="human-title">
@@ -356,8 +356,8 @@ function HumanSection() {
             ))}
           </ul>
           <p className="mt-8 border-l-4 border-brand-yellow pl-4 text-[0.9375rem] text-brand-ink-2" data-reveal>
-            Les rendez-vous, l'enrôlement biométrique et le retrait des documents restent en personne quand l'administration
-            l'exige. La fiche de chaque démarche vous le précise.
+            Certaines étapes demandent votre présence, comme l'enrôlement biométrique du passeport. La fiche de chaque démarche
+            vous le précise avant de commencer.
           </p>
         </div>
       </div>
@@ -368,9 +368,9 @@ function HumanSection() {
 /* ------------------------------------------------------------------ */
 
 const DEMO = [
-  { title: "Attestation de résidence", ref: "DOCU_8F21C4", status: "pending_user_action", updated: "Mis à jour hier", next: "Remplacer la preuve de résidence", pieces: "1 pièce à remplacer" },
-  { title: "Certificat de bonne vie et mœurs", ref: "DOCU_3A90E1", status: "under_review", updated: "Mis à jour il y a 3 jours", next: "Aucune action de votre part", pieces: "4 pièces envoyées" },
-  { title: "Acte de naissance", ref: "DOCU_77B0D2", status: "ready", updated: "Mis à jour aujourd'hui", next: "Retirer le document à la commune", pieces: "Dossier complet" },
+  { title: "Attestation de résidence", ref: "DOCU_8F21C4", status: "pending_user_action", updated: "Mis à jour hier", next: "Remplacer la preuve de résidence", pieces: "Payé, 1 pièce à remplacer" },
+  { title: "Certificat de bonne vie et mœurs", ref: "DOCU_3A90E1", status: "under_review", updated: "Mis à jour il y a 3 jours", next: "Aucune action de votre part", pieces: "Payé" },
+  { title: "Acte de naissance", ref: "DOCU_77B0D2", status: "ready", updated: "Mis à jour aujourd'hui", next: "Récupérer votre document", pieces: "Payé" },
 ];
 
 function CitizenSpacePreview() {
@@ -383,10 +383,10 @@ function CitizenSpacePreview() {
             vos dossiers.
           </h2>
           <p className="lead mt-5 text-white/85">
-            Un seul endroit pour voir où en est chaque dossier, ce qu'il manque et la prochaine étape.
+            Un seul endroit pour voir où notre équipe en est de chaque dossier, ce qu'il manque et la prochaine étape.
           </p>
           <ul className="mt-8 space-y-3 text-white/90">
-            {["Statut écrit en toutes lettres", "Date de la dernière mise à jour", "Pièces à compléter ou à remplacer", "Historique détaillé de chaque dossier"].map((t) => (
+            {["Statut écrit en toutes lettres", "Paiement et reçu", "Pièces à compléter ou à remplacer", "Historique détaillé de chaque dossier"].map((t) => (
               <li key={t} className="flex items-center gap-3">
                 <CheckCircle2 className="h-5 w-5 shrink-0 text-brand-yellow" aria-hidden="true" /> {t}
               </li>

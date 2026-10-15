@@ -12,6 +12,7 @@ import { relative } from "@/pages/dashboard";
 import { cn } from "@/lib/utils";
 
 type Row = Application & {
+  paid?: boolean;
   user: { prenom?: string; nom?: string; email?: string };
   procedure?: Procedure;
   documents: ApplicationDocument[];
@@ -93,6 +94,7 @@ function AdminDashboard() {
                     <th scope="col" className="px-5 py-3 font-semibold">Demandeur</th>
                     <th scope="col" className="px-5 py-3 font-semibold">Démarche</th>
                     <th scope="col" className="px-5 py-3 font-semibold">Statut</th>
+                    <th scope="col" className="px-5 py-3 font-semibold">Paiement</th>
                     <th scope="col" className="px-5 py-3 font-semibold">Pièces</th>
                     <th scope="col" className="px-5 py-3 font-semibold">Mise à jour</th>
                     <th scope="col" className="px-5 py-3"><span className="sr-only">Action</span></th>
@@ -109,6 +111,7 @@ function AdminDashboard() {
                         </td>
                         <td className="px-5 py-4 text-brand-ink">{a.procedure?.title}</td>
                         <td className="px-5 py-4"><StatusBadge status={a.status} /></td>
+                        <td className="px-5 py-4">{a.paid ? <span className="font-semibold text-[var(--st-success)]">Payé</span> : <span className="text-brand-ink-2">Non payé</span>}</td>
                         <td className="px-5 py-4 text-brand-ink-2">
                           {a.documents.length} envoyée{a.documents.length > 1 ? "s" : ""}
                           {toCheck > 0 && <span className="block text-sm font-semibold text-brand-deep">{toCheck} à contrôler</span>}

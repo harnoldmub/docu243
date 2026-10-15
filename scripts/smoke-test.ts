@@ -99,15 +99,11 @@ async function main() {
   assert(procedures.length > 0, "Aucune procedure disponible.");
   assert(procedures.every((p) => p.editorialStatus === "published"), "Le catalogue public expose des fiches non publiees.");
 
-  const external = procedures.find((p) => p.channel === "external");
-  if (external) {
-    await citizen.expectStatus("/api/applications", { method: "POST", body: JSON.stringify({ procedureId: external.id }) }, 409,
-      "Une demarche deposee sur un portail externe ne doit pas creer de dossier.");
-  }
   await citizen.expectStatus("/api/inconnue", {}, 404, "Une route API inconnue doit repondre 404.");
 
+  // Prefer a procedure with a payable price so that the Stripe checkout can be exercised.
   const preferredProcedure =
-    procedures.find((procedure) => procedure.slug === "legalisation-de-document") ||
+    procedures.find((p: any) => p.status === "available" && p.feeStatus === "confirmed" && p.currency === "USD") ||
     procedures.find((procedure) => procedure.status === "available" && procedure.channel === "docu243");
   assert(preferredProcedure, "Impossible de selectionner une procedure de test.");
 
@@ -153,14 +149,22 @@ async function main() {
     });
   }
 
-  await citizen.request(`/api/applications/${createdApplication.id}`, {
-    method: "PATCH",
-    body: JSON.stringify({ status: "submitted" }),
-  });
+  // A complete dossier still needs a confirmed payment before it is transmitted.
+  await citizen.expectStatus(`/api/applications/${createdApplication.id}`, { method: "PATCH", body: JSON.stringify({ status: "submitted" }) }, 402,
+    "Un dossier non paye ne doit pas pouvoir etre transmis.");
+  const payConfig = await citizen.request<{ enabled: boolean }>("/api/payments/config");
+  const checkout = await citizen.raw(`/api/applications/${createdApplication.id}/checkout`, { method: "POST" });
+  if (payConfig.enabled) {
+    const body = await checkout.json();
+    assert(checkout.ok && typeof body.url === "string", `La session Stripe n'a pas ete creee (${checkout.status}).`);
+  } else {
+    assert(checkout.status === 503, `Sans cle Stripe, le paiement doit repondre 503 (recu ${checkout.status}).`);
+  }
 
   const adminApplications = await admin.request<any[]>("/api/admin/applications");
   const targetApplication = adminApplications.find((application) => application.id === createdApplication.id);
-  assert(targetApplication, "Le dossier soumis n'apparait pas dans le backoffice admin.");
+  assert(targetApplication, "Le dossier n'apparait pas dans le backoffice admin.");
+  assert(targetApplication.paid === false, "Le dossier non paye apparait comme paye.");
 
   await admin.request(`/api/admin/applications/${createdApplication.id}/status`, {
     method: "PATCH",
@@ -185,8 +189,6 @@ async function main() {
     body: JSON.stringify({ status: "ready" }),
   });
 
-  const submitted = await citizen.request<any>(`/api/applications/${createdApplication.id}`);
-  assert(submitted.requirementsSnapshot, "Les exigences applicables au dossier transmis ne sont pas conservees.");
 
   const citizenNotifications = await citizen.request<any[]>("/api/notifications");
   assert(

@@ -32,7 +32,7 @@ export function ProcedureCard({ procedure, headingLevel = 3 }: { procedure: Proc
   const fee = feeLabel(procedure);
   const a = availability(procedure);
   const Heading = `h${headingLevel}` as "h2" | "h3";
-  const cta = a.key === "online" ? "Voir la démarche" : a.key === "external" ? "Préparer ma démarche" : "Voir les informations";
+  const cta = a.key === "online" ? "Voir la démarche" : "Voir les informations";
 
   return (
     <article className="group relative flex h-full flex-col rounded-2xl border border-brand-line bg-white p-5 transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-brand-royal/40 hover:shadow-raised focus-within:border-brand-royal sm:p-6">
@@ -56,7 +56,7 @@ export function ProcedureCard({ procedure, headingLevel = 3 }: { procedure: Proc
           <dd className="font-semibold text-brand-ink">{procedure.institution}</dd>
         </div>
         <div>
-          <dt className="text-brand-ink-2">Frais</dt>
+          <dt className="text-brand-ink-2">Prix total</dt>
           <dd className="font-semibold text-brand-ink">
             {fee.label}
             {fee.hint && <span className="block text-xs font-normal text-brand-ink-2">{fee.hint}</span>}

@@ -40,7 +40,7 @@ const columns = [
 
 export function Footer() {
   return (
-    <footer className="on-blue bg-brand-night text-white">
+    <footer className="on-blue bg-brand-night text-white print:hidden">
       <div className="tricolor" aria-hidden="true" />
       <div className="md-container grid gap-12 py-14 lg:grid-cols-[1.1fr_2fr] lg:py-20">
         <div className="max-w-sm space-y-5">
@@ -49,8 +49,8 @@ export function Footer() {
           </Link>
           <p className="font-display text-2xl font-bold leading-tight">Vos démarches, simplement.</p>
           <p className="text-[0.9375rem] leading-relaxed text-white/75">
-            MesDémarches vous aide à comprendre, préparer et suivre vos démarches administratives en RDC. Chaque fiche indique
-            l'administration compétente et la source officielle consultée.
+            MesDémarches effectue vos démarches administratives en RDC à votre place : vous envoyez vos documents et réglez en
+            ligne, notre équipe s'occupe du reste et vous tient informé à chaque étape.
           </p>
         </div>
         <div className="grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-4">

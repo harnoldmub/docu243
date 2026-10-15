@@ -85,18 +85,21 @@ export function formatMoney(amount: number, currency: string) {
   return formatters[key].format(amount);
 }
 
-export function feeLabel(p: Pick<Procedure, "cost" | "currency" | "feeStatus">): { label: string; hint?: string } {
-  if (p.feeStatus === "confirmed" && p.currency) {
-    if (p.cost === 0) return { label: "Gratuit" };
-    return { label: formatMoney(p.cost, p.currency) };
+/** Official base price + MesDémarches service fee, in USD. Null when the base price is not set. */
+export function priceOf(p: Pick<Procedure, "cost" | "currency" | "feeStatus" | "serviceFee">) {
+  if (p.feeStatus !== "confirmed" || p.currency !== "USD") return null;
+  return { official: p.cost, service: p.serviceFee, total: p.cost + p.serviceFee };
+}
+
+export function feeLabel(p: Pick<Procedure, "cost" | "currency" | "feeStatus" | "serviceFee">): { label: string; hint?: string } {
+  const price = priceOf(p);
+  if (price) {
+    return {
+      label: formatMoney(price.total, "USD"),
+      hint: price.official > 0 ? `dont ${formatMoney(price.official, "USD")} de frais officiels` : "frais de service inclus",
+    };
   }
-  if (p.feeStatus === "variable") {
-    if (p.currency && p.cost > 0 && p.currency === "USD") {
-      return { label: `À partir de ${formatMoney(p.cost, p.currency)}`, hint: "Selon votre situation" };
-    }
-    return { label: "Variable", hint: "Selon la commune" };
-  }
-  return { label: "À confirmer", hint: "Tarif en cours de vérification" };
+  return { label: "Tarif à venir", hint: `Frais de service : ${formatMoney(p.serviceFee ?? 20, "USD")}` };
 }
 
 // ---------- Delay ----------
@@ -123,38 +126,22 @@ export function availability(p: Pick<Procedure, "status" | "channel">): {
   label: string;
   description: string;
 } {
-  if (p.channel === "external") {
-    return {
-      key: "external",
-      label: "Portail officiel",
-      description: "Préparez votre dossier ici, puis déposez-le sur le portail de l'administration.",
-    };
-  }
-  if (p.status === "available" && p.channel === "docu243") {
+  if (p.status === "available") {
     return {
       key: "online",
-      label: "Dossier en ligne",
-      description: "Vous pouvez constituer et transmettre votre dossier dans MesDémarches.",
-    };
-  }
-  if (p.channel === "info") {
-    return {
-      key: "info",
-      label: "Informations",
-      description: "Fiche d'information pour préparer votre démarche auprès de l'administration.",
+      label: "Nous nous en chargeons",
+      description: "Envoyez vos documents et réglez en ligne : notre équipe effectue la démarche pour vous.",
     };
   }
   return {
     key: "soon",
     label: "À venir",
-    description: "Cette démarche n'est pas encore ouverte en ligne. Les informations sont données à titre indicatif.",
+    description: "Cette démarche n'est pas encore proposée. Les informations sont données à titre indicatif.",
   };
 }
 
 export const AVAILABILITY_FILTERS: Array<{ value: AvailabilityKey; label: string }> = [
-  { value: "online", label: "Dossier en ligne" },
-  { value: "external", label: "Portail officiel" },
-  { value: "info", label: "Informations" },
+  { value: "online", label: "Nous nous en chargeons" },
   { value: "soon", label: "À venir" },
 ];
 

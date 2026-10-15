@@ -44,8 +44,8 @@ export function LegalNoticePage() {
       <section>
         <h2>Le service</h2>
         <p>
-          MesDémarches est un service en ligne qui aide les usagers à comprendre, préparer et suivre leurs démarches administratives
-          en République démocratique du Congo.
+          MesDémarches (mesdemarches.cd) est un service privé qui effectue des démarches administratives en République démocratique
+          du Congo pour le compte de ses clients, contre rémunération.
         </p>
       </section>
       <section>
@@ -82,11 +82,18 @@ export function PrivacyPage() {
           <li>Vos dossiers : les informations saisies dans les formulaires et les pièces que vous envoyez.</li>
           <li>L'historique de vos dossiers : création, envoi, changements de statut et décisions sur les pièces.</li>
         </ul>
-        <p>MesDémarches ne collecte aucune donnée biométrique et n'encaisse aucun paiement.</p>
+        <ul>
+          <li>Vos paiements : montant, date, numéro de reçu et référence Stripe. Les données de votre carte sont traitées par Stripe et ne sont jamais stockées par MesDémarches.</li>
+        </ul>
+        <p>MesDémarches ne collecte aucune donnée biométrique.</p>
       </section>
       <section>
         <h2>Utilisation</h2>
-        <p>Ces données servent uniquement à constituer, transmettre et suivre vos dossiers, et à vous informer de leur avancement.</p>
+        <p>
+          Ces données servent uniquement à effectuer les démarches que vous nous confiez auprès des administrations compétentes, à
+          suivre vos dossiers et à vous informer de leur avancement. Elles sont transmises à l'administration concernée dans la seule
+          mesure nécessaire à la démarche.
+        </p>
       </section>
       <section>
         <h2>Accès à vos pièces</h2>
@@ -119,11 +126,27 @@ export function TermsPage() {
   return (
     <LegalLayout
       title="Conditions d'utilisation"
-      missing={["Éditeur du service et droit applicable", "Conditions de suspension ou de suppression d'un compte", "Responsabilités en cas d'indisponibilité du service"]}
+      missing={[
+        "Éditeur du service et droit applicable",
+        "Politique de remboursement (annulation, refus de l'administration, démarche impossible)",
+        "Délais d'exécution sur lesquels MesDémarches s'engage",
+        "Conditions de suspension ou de suppression d'un compte",
+      ]}
     >
       <section>
         <h2>Objet</h2>
-        <p>Ces conditions encadrent l'utilisation de MesDémarches par toute personne qui consulte le site ou crée un compte.</p>
+        <p>
+          Ces conditions encadrent l'utilisation de MesDémarches par toute personne qui consulte le site ou crée un compte, et les
+          démarches que nos clients nous confient.
+        </p>
+      </section>
+      <section>
+        <h2>Le service</h2>
+        <ul>
+          <li>En transmettant un dossier, vous autorisez MesDémarches à effectuer la démarche en votre nom auprès de l'administration compétente.</li>
+          <li>Le prix affiché comprend les frais officiels de la démarche et les frais de service MesDémarches. Il est payé en ligne, en dollars, avant la prise en charge du dossier.</li>
+          <li>Les étapes qui exigent votre présence (par exemple l'enrôlement biométrique) restent à votre charge ; nous vous indiquons quand et où vous présenter.</li>
+        </ul>
       </section>
       <section>
         <h2>Votre compte</h2>
@@ -135,7 +158,7 @@ export function TermsPage() {
       <section>
         <h2>Vos dossiers</h2>
         <ul>
-          <li>Un dossier transmis ne peut plus être modifié, sauf si vous le retirez avant sa prise en charge ou si un agent demande une correction.</li>
+          <li>Un dossier transmis ne peut plus être modifié, sauf si vous le retirez avant sa prise en charge ou si notre équipe demande une correction. Une correction n'entraîne pas de nouveau paiement.</li>
           <li>La décision sur votre demande appartient à l'administration compétente.</li>
           <li>Toute fausse déclaration ou pièce falsifiée peut entraîner le refus de votre demande.</li>
         </ul>

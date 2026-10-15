@@ -21,6 +21,7 @@ const PrivacyPage = lazy(() => import("@/pages/legal").then((m) => ({ default: m
 const TermsPage = lazy(() => import("@/pages/legal").then((m) => ({ default: m.TermsPage })));
 const Dashboard = lazy(() => import("@/pages/dashboard"));
 const ApplicationDetail = lazy(() => import("@/pages/application-detail"));
+const Receipt = lazy(() => import("@/pages/receipt"));
 const MyDocuments = lazy(() => import("@/pages/my-documents"));
 const Notifications = lazy(() => import("@/pages/notifications"));
 const Profile = lazy(() => import("@/pages/profile"));
@@ -89,6 +90,7 @@ function Router() {
         <Route path="/confidentialite" component={PrivacyPage} />
         <Route path="/conditions" component={TermsPage} />
         <Route path="/dashboard" component={Dashboard} />
+        <Route path="/application/:id/recu" component={Receipt} />
         <Route path="/application/:id" component={ApplicationDetail} />
         <Route path="/mes-documents" component={MyDocuments} />
         <Route path="/notifications" component={Notifications} />

@@ -71,7 +71,7 @@ export function Header() {
   };
 
   return (
-    <header className={cn("sticky top-0 z-40 bg-white transition-shadow duration-200", scrolled && "shadow-[0_1px_0_var(--md-line),0_6px_20px_-12px_rgb(16_27_53/0.25)]")}>
+    <header className={cn("sticky top-0 z-40 bg-white print:hidden transition-shadow duration-200", scrolled && "shadow-[0_1px_0_var(--md-line),0_6px_20px_-12px_rgb(16_27_53/0.25)]")}>
       <div className="tricolor" aria-hidden="true" />
       <a
         href="#contenu"

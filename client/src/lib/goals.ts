@@ -23,10 +23,10 @@ export const GOALS: Goal[] = [
     ordered: true,
     orderNote: "Ordre indiqué par le catalogue officiel des services publics.",
     steps: [
-      { label: "Vérifiez que vous avez un NIF", description: "Le numéro d'impôt est demandé avant l'inscription.", slug: "numero-identification-fiscale" },
-      { label: "Préparez vos pièces", description: "Document d'identification, photographie, ancien passeport en cas de renouvellement.", slug: "passeport-biometrique" },
-      { label: "Inscrivez-vous sur le portail passeport", description: "Vous recevez une référence de paiement et un QR code.", url: "https://www.passeport.gouv.cd/" },
-      { label: "Prévoyez les rendez-vous en personne", description: "Vérification du dossier puis enrôlement biométrique, et retrait au centre d'enrôlement." },
+      { label: "Pas encore de NIF ? Nous l'obtenons pour vous", description: "Le numéro d'impôt est demandé avant l'inscription.", slug: "numero-identification-fiscale" },
+      { label: "Envoyez vos pièces et réglez en ligne", description: "Document d'identification, photographie, ancien passeport en cas de renouvellement.", slug: "passeport-biometrique" },
+      { label: "Nous vous inscrivons et réglons les frais officiels", description: "Sur le portail passeport, avec la référence de paiement et le QR code." },
+      { label: "Présentez-vous aux rendez-vous en personne", description: "Vérification du dossier puis enrôlement biométrique, et retrait au centre d'enrôlement : nous vous indiquons quand." },
     ],
   },
   {
@@ -38,9 +38,9 @@ export const GOALS: Goal[] = [
     orderNote: "Ordre indiqué par l'ANAPI et la CNSS.",
     steps: [
       { label: "Choisissez votre forme d'entreprise", description: "Société (personne morale) ou entreprise individuelle.", slug: "creation-d-entreprise" },
-      { label: "Déposez votre dossier au Guichet unique", description: "Le GUCE délivre notamment le RCCM et les numéros d'identification.", slug: "creation-entreprise-individuelle" },
-      { label: "Affiliez votre entreprise à la CNSS", description: "Formulaire unique au Guichet unique lors de la création.", slug: "affiliation-employeur-cnss" },
-      { label: "Immatriculez chaque travailleur", description: "Dans les quinze jours ouvrables qui suivent l'embauche.", slug: "immatriculation-cnss" },
+      { label: "Nous déposons votre dossier au Guichet unique", description: "Le GUCE délivre notamment le RCCM et les numéros d'identification.", slug: "creation-entreprise-individuelle" },
+      { label: "Nous affilions votre entreprise à la CNSS", description: "Formulaire unique au Guichet unique lors de la création.", slug: "affiliation-employeur-cnss" },
+      { label: "Nous immatriculons chaque travailleur", description: "Dans les quinze jours ouvrables qui suivent l'embauche.", slug: "immatriculation-cnss" },
     ],
   },
   {

@@ -1,5 +1,16 @@
 # Refonte MesDémarches — livrable
 
+## Mise à jour : modèle « nous faisons la démarche pour vous » (mesdemarches.cd)
+
+- Toutes les démarches publiées sont effectuées par l'équipe MesDémarches. Plus de renvoi vers des portails externes pour le client.
+- Prix affiché = prix de base officiel (USD) + frais de service : 100 USD pour le passeport, 50 USD pour les démarches complexes (entreprise, foncier, construction, transport, nationalité, succession, légalisation, profession libérale…), 20 USD pour les autres. Modifiables par démarche dans le back-office.
+- Paiement par carte via Stripe au moment de transmettre le dossier, avec autorisation du client à agir en son nom. Confirmation par le serveur (retour de paiement et webhook), notification, reçu MesDémarches imprimable. Une correction ne fait pas repayer.
+- Prix de base fixés à partir des sources : passeport 75, certificat de nationalité 40, société 70 (statuts sous seing privé), entreprise individuelle 40, et tarifs de la commune de Gombe pour l'acte de naissance (10), la résidence (1), la bonne vie et mœurs (10), le mariage (10), le célibat (10) et le décès (10).
+- **18 démarches publiées n'ont pas encore de prix de base : leur paiement est bloqué** jusqu'à la saisie d'un prix en USD (statut « Confirmé ») dans le back-office. Liste dans `docs/matrice-demarches.md`.
+- Pour la mise en production : définir `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` et `PUBLIC_URL=https://mesdemarches.cd`, et déclarer le webhook `https://mesdemarches.cd/api/stripe/webhook` dans Stripe.
+- À définir : politique de remboursement (refus de l'administration, annulation), délais sur lesquels vous vous engagez, mandat ou procuration exigés par certaines administrations pour agir au nom d'un client.
+
+
 Octobre 2026. DOCU243 devient **MesDémarches — Vos démarches, simplement.** La stack existante (Vite + React + Express + PostgreSQL) est conservée.
 
 ## Ce qui change

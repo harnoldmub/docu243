@@ -2,7 +2,7 @@
 
 ## Overview
 
-MesDémarches (anciennement DOCU243) aide les usagers à comprendre, préparer et suivre leurs démarches administratives en RDC : catalogue de démarches sourcées, liste de pièces adaptée à la situation, dossiers en ligne pour les démarches ouvertes, suivi et notifications, back-office de traitement et de gestion éditoriale.
+MesDémarches (mesdemarches.cd, anciennement DOCU243) effectue les démarches administratives en RDC à la place de ses clients. Le client choisit une démarche, envoie ses informations et ses pièces, paie en ligne (Stripe) le prix de base officiel + les frais de service, reçoit la confirmation et son reçu ; l'équipe MesDémarches effectue la démarche et met à jour le statut du dossier.
 
 ## User Preferences
 
@@ -21,7 +21,7 @@ Preferred communication style: Simple, everyday language.
 - Contenu sourcé : `server/catalog-content.ts` (sources consultées le 14/10/2026).
 - Matrice de toutes les démarches : `docs/matrice-demarches.md`, régénérée par `npx tsx scripts/export-matrix.ts`.
 - Statut éditorial : `draft`, `to_verify`, `validated`, `published`, `archived`. Seules les fiches `published` et actives sont publiques.
-- Mode de dépôt (`channel`) : `docu243` (dossier dans MesDémarches), `external` (portail officiel), `info` (information et préparation).
+- Toutes les démarches publiées sont effectuées par MesDémarches (`channel = docu243`) ; `external_url` garde le portail officiel utilisé par l'équipe.
 - Frais : montant brut + `currency` (CDF, USD) + `fee_status` (`confirmed`, `variable`, `unconfirmed`). Un tarif non confirmé n'est pas affiché.
 
 ## API
@@ -33,12 +33,17 @@ Preferred communication style: Simple, everyday language.
 - Notifications : `GET /api/notifications`, `PATCH /api/notifications/:id/read`, `POST /api/notifications/read-all`
 - Back-office : `GET /api/admin/applications`, `PATCH /api/admin/applications/:id/status` (`note` obligatoire pour une correction), `PATCH /api/admin/documents/:id/validate`, `GET|POST|PATCH /api/admin/procedures`, champs et pièces, `GET|POST|PATCH /api/admin/users`, `GET /api/admin/logs`
 
-## Paiement
+## Paiement (Stripe)
 
-Aucun paiement n'est encaissé par la plateforme. L'ancienne étape de paiement simulée a été retirée.
+- Prix = `procedures.cost` (prix de base officiel, payable seulement si `currency = USD` et `fee_status = confirmed`) + `procedures.service_fee` (USD : 100 passeport, 50 démarches complexes, 20 les autres).
+- `POST /api/applications/:id/checkout` crée une session Stripe Checkout (dossier complet obligatoire). Au retour, `POST /api/payments/verify` confirme ; le webhook `POST /api/stripe/webhook` (événements `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.expired`, `checkout.session.async_payment_failed`) fait de même en arrière-plan.
+- Une fois payé : statut `submitted`, numéro de reçu `MD-AAAA-000001`, notification au client, reçu imprimable sur `/application/:id/recu`.
+- Un dossier ne peut pas être transmis sans paiement, sauf s'il avait déjà été transmis avant l'arrivée du paiement en ligne.
 
 ## Environnement
 
 - `DATABASE_URL` (obligatoire), `SESSION_SECRET` (obligatoire en production), `PORT`.
+- `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` : paiement. Sans clé, le paiement est désactivé et le site l'indique.
+- `PUBLIC_URL=https://mesdemarches.cd` : adresse utilisée pour les retours de paiement Stripe.
 - Développement local sur une base séparée : `DATABASE_URL=postgresql://localhost/mesdemarches_dev PORT=5055 npm run dev`.
 - Test de bout en bout : `BASE_URL=http://localhost:5055 npm run test:smoke` (crée un compte citoyen de test, utilise `SMOKE_ADMIN_EMAIL` / `SMOKE_ADMIN_PASSWORD`).

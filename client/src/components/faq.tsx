@@ -15,8 +15,8 @@ export const FAQ_ITEMS: Array<{ id: string; q: string; a: ReactNode }> = [
           seulement dans certains cas et les originaux à présenter en personne.
         </p>
         <p className="mt-3">
-          Pour un dossier en ligne, chaque pièce s'envoie en PDF, JPG, PNG ou WEBP, dans la limite de taille indiquée sous la pièce
-          (5 Mo en général).
+          Chaque pièce s'envoie en PDF, JPG, PNG ou WEBP, dans la limite de taille indiquée sous la pièce (5 Mo en général). Une
+          photo nette prise avec votre téléphone suffit.
         </p>
       </>
     ),
@@ -26,9 +26,9 @@ export const FAQ_ITEMS: Array<{ id: string; q: string; a: ReactNode }> = [
     q: "Puis-je faire ma démarche depuis l'étranger ?",
     a: (
       <p>
-        Vous pouvez consulter les fiches, créer votre compte et préparer votre dossier où que vous soyez. Le retrait des documents
-        se fait en personne, à l'endroit indiqué par l'administration. Certaines démarches, comme le passeport, se déposent auprès
-        de l'ambassade ou du consulat de RDC de votre pays de résidence : contactez-le pour connaître ses exigences.
+        Oui pour la plupart : vous envoyez vos documents et réglez en ligne, notre équipe effectue la démarche en RDC. Quand votre
+        présence est indispensable, comme pour l'enrôlement biométrique du passeport, la fiche le précise : à l'étranger, cette
+        étape se fait auprès de l'ambassade ou du consulat de RDC de votre pays de résidence.
       </p>
     ),
   },
@@ -37,9 +37,10 @@ export const FAQ_ITEMS: Array<{ id: string; q: string; a: ReactNode }> = [
     q: "À quel moment dois-je payer ?",
     a: (
       <p>
-        MesDémarches n'encaisse aucun paiement. Les frais sont réglés auprès de l'administration compétente, selon ses modalités.
-        Quand un montant officiel est publié, la fiche l'indique avec sa devise (USD ou CDF) ; sinon elle précise qu'il est à
-        confirmer. Si l'administration demande un paiement pour votre dossier, son statut devient « Paiement requis ».
+        Au moment de transmettre votre dossier, une fois les pièces envoyées. Vous payez en une fois, par carte et en dollars, le
+        prix affiché sur la fiche : les frais officiels de l'administration plus nos frais de service (100 USD pour le passeport,
+        20 ou 50 USD pour les autres démarches). Vous recevez aussitôt la confirmation et un reçu, et nous réglons l'administration
+        pour vous.
       </p>
     ),
   },
@@ -49,8 +50,8 @@ export const FAQ_ITEMS: Array<{ id: string; q: string; a: ReactNode }> = [
     a: (
       <p>
         Connectez-vous et ouvrez <Link href="/dashboard" className="font-semibold text-brand-royal underline underline-offset-4">Mes dossiers</Link>. Chaque dossier
-        affiche son statut, la date de la dernière mise à jour, la prochaine action attendue et l'historique complet. Vous recevez
-        une notification à chaque changement.
+        affiche son statut, la date de la dernière mise à jour, la prochaine étape et l'historique complet. Notre équipe met le
+        statut à jour à chaque avancée, et vous recevez une notification.
       </p>
     ),
   },
@@ -59,8 +60,9 @@ export const FAQ_ITEMS: Array<{ id: string; q: string; a: ReactNode }> = [
     q: "Que faire si une pièce est refusée ?",
     a: (
       <p>
-        L'agent indique le motif sous la pièce concernée et votre dossier passe au statut « Correction demandée ». Remplacez
-        uniquement la pièce refusée, puis transmettez de nouveau le dossier : les autres informations sont conservées.
+        Notre équipe indique le motif sous la pièce concernée et votre dossier passe au statut « Correction demandée ». Remplacez
+        uniquement cette pièce, puis transmettez de nouveau le dossier : les autres informations sont conservées et vous ne payez
+        pas une seconde fois.
       </p>
     ),
   },
@@ -71,7 +73,7 @@ export const FAQ_ITEMS: Array<{ id: string; q: string; a: ReactNode }> = [
       <p>
         Les coordonnées de l'assistance MesDémarches sont en cours de validation et seront publiées sur la page{" "}
         <Link href="/aide#contact" className="font-semibold text-brand-royal underline underline-offset-4">Aide</Link>. Pour une question
-        sur une décision administrative, chaque fiche indique l'administration compétente.
+        sur votre dossier, indiquez toujours sa référence (par exemple DOCU_1A2B3C).
       </p>
     ),
   },

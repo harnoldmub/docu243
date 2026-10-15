@@ -28,14 +28,14 @@ export const EDITORIAL: Record<string, { label: string; tone: Tone }> = {
 const STALE_DAYS = 180;
 
 /** Problems an editor should look at before (or after) publishing a procedure. */
-export function editorialFlags(p: Pick<Procedure, "guide" | "feeStatus" | "verifiedAt" | "editorialStatus" | "channel" | "externalUrl">, docsCount = 0) {
+export function editorialFlags(p: Pick<Procedure, "guide" | "feeStatus" | "currency" | "verifiedAt" | "editorialStatus" | "channel" | "externalUrl">, docsCount = 0) {
   const g = p.guide ?? {};
   const flags: string[] = [];
   if (!g.sources?.length) flags.push("Source absente");
   if (!g.checklist?.length && !docsCount) flags.push("Liste des pièces incomplète");
   if (g.missingInfo?.length) flags.push(`${g.missingInfo.length} point${g.missingInfo.length > 1 ? "s" : ""} à confirmer`);
   if (g.contradictory) flags.push("Information contradictoire");
-  if (p.feeStatus === "unconfirmed") flags.push("Tarif non confirmé");
+  if (p.feeStatus !== "confirmed" || p.currency !== "USD") flags.push("Prix de base en USD non fixé : paiement impossible");
   if (!p.verifiedAt) flags.push("Validation interne absente");
   else if ((Date.now() - new Date(p.verifiedAt).getTime()) / 86_400_000 > STALE_DAYS) flags.push("Fiche ancienne à revoir");
   if (p.channel === "external" && !p.externalUrl) flags.push("Lien du portail officiel manquant");
@@ -49,6 +49,7 @@ type Form = {
   institution: string;
   estimatedDays: number;
   cost: number;
+  serviceFee: number;
   currency: "" | "CDF" | "USD";
   feeStatus: "confirmed" | "variable" | "unconfirmed";
   status: "available" | "coming_soon";
@@ -83,6 +84,7 @@ function toForm(p: Detail): Form {
     institution: p.institution,
     estimatedDays: p.estimatedDays,
     cost: p.cost,
+    serviceFee: p.serviceFee,
     currency: (p.currency as Form["currency"]) ?? "",
     feeStatus: (p.feeStatus as Form["feeStatus"]) ?? "unconfirmed",
     status: p.status as Form["status"],
@@ -131,6 +133,7 @@ function toPayload(f: Form) {
     institution: f.institution,
     estimatedDays: f.estimatedDays,
     cost: f.cost,
+    serviceFee: f.serviceFee,
     currency: f.currency || null,
     feeStatus: f.feeStatus,
     status: f.status,
@@ -385,8 +388,11 @@ function Editor({ detail, canEdit, onSaved }: { detail: Detail; canEdit: boolean
         </F>
       </Section>
 
-      <Section title="Frais et délais" intro="Ne renseignez un montant confirmé qu'avec une source officielle. Le montant brut est affiché tel quel avec sa devise.">
-        <F label="Montant brut">
+      <Section
+        title="Prix et délais"
+        intro="Prix payé par le client = prix de base officiel + frais de service. Le paiement n'est possible que si le prix de base est en USD et « Confirmé »."
+      >
+        <F label="Prix de base officiel">
           <input type="number" min={0} className="field-input" value={form.cost} onChange={(e) => set("cost", Number(e.target.value))} />
         </F>
         <F label="Devise">
@@ -398,10 +404,12 @@ function Editor({ detail, canEdit, onSaved }: { detail: Detail; canEdit: boolean
         </F>
         <F label="Statut du tarif" hint={form.currency ? `Aperçu : ${formatMoney(form.cost, form.currency)}` : undefined}>
           <select className="field-input" value={form.feeStatus} onChange={(e) => set("feeStatus", e.target.value as Form["feeStatus"])}>
-            <option value="confirmed">Confirmé</option>
-            <option value="variable">Variable (commune, consulat, option)</option>
-            <option value="unconfirmed">À confirmer (non affiché)</option>
+            <option value="confirmed">Confirmé (payable)</option>
+            <option value="unconfirmed">À fixer (non payable)</option>
           </select>
+        </F>
+        <F label="Frais de service MesDémarches (USD)" hint="100 pour le passeport, 50 ou 20 pour les autres démarches.">
+          <input type="number" min={0} className="field-input" value={form.serviceFee} onChange={(e) => set("serviceFee", Number(e.target.value))} />
         </F>
         <F label="Délai interne (jours)" hint="Affiché seulement si la fiche a une date de validation.">
           <input type="number" min={0} className="field-input" value={form.estimatedDays} onChange={(e) => set("estimatedDays", Number(e.target.value))} />

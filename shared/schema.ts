@@ -69,6 +69,8 @@ export const procedures = pgTable("procedures", {
   cost: integer("cost").notNull(),
   currency: text("currency"), // CDF, USD — null when unknown
   feeStatus: text("fee_status").notNull().default("unconfirmed"), // confirmed, variable, unconfirmed
+  // MesDémarches service fee, in whole US dollars, added to the official base price.
+  serviceFee: integer("service_fee").notNull().default(20),
   status: text("status").notNull().default("available"), // available, coming_soon (online dossier in MesDémarches)
   channel: text("channel").notNull().default("docu243"), // docu243, external, info
   externalUrl: text("external_url"),
@@ -198,9 +200,14 @@ export type FileUpload = typeof fileUploads.$inferSelect;
 export const payments = pgTable("payments", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   applicationId: varchar("application_id").notNull(),
-  amount: integer("amount").notNull(),
+  amount: integer("amount").notNull(), // total charged, in cents
+  currency: text("currency"),
+  officialAmount: integer("official_amount"), // official base price, whole units
+  serviceFee: integer("service_fee"), // MesDémarches fee, whole units
   status: text("status").notNull().default("pending"), // pending, succeeded, failed, refunded
-  provider: text("provider").notNull(), // mpesa, airtel, orange
+  provider: text("provider").notNull(), // stripe
+  checkoutSessionId: text("checkout_session_id"),
+  receiptNumber: text("receipt_number"),
   transactionRef: text("transaction_reference"),
   paidAt: timestamp("paid_at"),
   createdAt: timestamp("created_at").defaultNow(),

@@ -1,7 +1,7 @@
 // Generates docs/matrice-demarches.md from the catalogue content.
 // Usage: npx tsx scripts/export-matrix.ts
 import { writeFileSync, mkdirSync } from "node:fs";
-import { existingContent, newProcedures, type ProcedureContent } from "../server/catalog-content";
+import { existingContent, newProcedures, BASE_PRICES, SERVICE_FEES, DEFAULT_SERVICE_FEE, type ProcedureContent } from "../server/catalog-content";
 import { catalog as seed } from "../server/seed";
 
 const KIND: Record<string, string> = {
@@ -15,19 +15,16 @@ const KIND: Record<string, string> = {
 
 const cell = (v: string | undefined) => (v && v.trim() ? v.replace(/\|/g, "/").replace(/\n/g, " ") : "—");
 
-function mode(c: ProcedureContent, seedStatus?: string) {
-  const status = c.status ?? seedStatus ?? "coming_soon";
-  const channel = c.channel ?? "docu243";
+function mode(c: ProcedureContent) {
   if (c.editorialStatus === "draft") return "Brouillon (non publié)";
-  if (channel === "external") return "Dépôt sur portail officiel";
-  if (channel === "info") return "Information et préparation";
-  return status === "available" ? "Dossier en ligne MesDémarches" : "À venir";
+  return "Effectuée par MesDémarches pour le client";
 }
 
-function fee(c: ProcedureContent) {
-  if (c.feeStatus === "confirmed" && c.currency) return c.cost === 0 ? "Gratuit" : `${c.cost} ${c.currency}`;
-  if (c.feeStatus === "variable") return c.guide.feeNote ? `Variable : ${c.guide.feeNote}` : "Variable";
-  return "À confirmer";
+function fee(slug: string) {
+  const service = SERVICE_FEES[slug] ?? DEFAULT_SERVICE_FEE;
+  const base = BASE_PRICES[slug];
+  if (!base) return `Prix de base à fixer + ${service} USD de service (paiement impossible)`;
+  return `${base.amount} USD + ${service} USD de service = ${base.amount + service} USD${base.note ? ` (${base.note})` : ""}`;
 }
 
 type Row = { slug: string; title: string; institution: string; content: ProcedureContent; seedStatus?: string; seedDocs?: string[] };
@@ -48,10 +45,10 @@ const rows: Row[] = [
 ];
 
 const header =
-  "| Démarche | Profil / variantes | Territoire | Institution | Prérequis | Pièces | Étapes physiques | Frais / devise | Délai | Source | Date de vérification | Informations manquantes | Mode de disponibilité |";
+  "| Démarche | Profil / variantes | Territoire | Institution | Prérequis | Pièces | Étapes physiques | Prix (base + service) | Délai | Source | Date de vérification | Informations manquantes | Mode de disponibilité |";
 const sep = "|" + " --- |".repeat(13);
 
-const lines = rows.map(({ title, institution, content: c, seedStatus, seedDocs }) => {
+const lines = rows.map(({ slug, title, institution, content: c, seedDocs }) => {
   const g = c.guide;
   const profiles = (g.questions ?? []).map((q) => `${q.label} : ${q.options.map((o) => o.label).join(" / ")}`).join(" ; ");
   const pieces = g.checklist?.length
@@ -70,12 +67,12 @@ const lines = rows.map(({ title, institution, content: c, seedStatus, seedDocs }
     (g.prerequisites ?? []).map((p) => p.label).join(" ; "),
     pieces,
     physical,
-    fee(c),
+    fee(slug),
     g.processingNote,
     sources,
     dates ? `Consultée le ${dates} ; validation interne : en attente` : "Aucune source consultée",
     (g.missingInfo ?? []).join(" ; "),
-    mode(c, seedStatus),
+    mode(c),
   ]
     .map((v) => cell(v))
     .join(" | ")} |`;
@@ -88,7 +85,7 @@ Générée par \`npx tsx scripts/export-matrix.ts\` à partir de \`server/catalo
 Sources consultées le 14 octobre 2026. Aucune fiche n'a encore de date de validation interne : elles s'affichent comme « en cours de validation ».
 
 - ${rows.length} démarches au total, dont ${published} publiées et ${rows.length - published} brouillons masqués du catalogue.
-- « À confirmer » signifie qu'aucune source officielle n'a été trouvée : le montant enregistré n'est pas affiché.
+- Prix payé par le client = prix de base officiel (USD) + frais de service MesDémarches (100 USD passeport, 50 USD démarches complexes, 20 USD les autres). Sans prix de base, le paiement est bloqué jusqu'à sa saisie dans le back-office.
 - « Formulaire MesDémarches existant, non vérifié » : pièces du formulaire en ligne d'origine, conservées pour ne pas casser les dossiers existants, mais non confirmées par une source.
 
 ${header}

@@ -13,15 +13,17 @@ import {
   procedureRequiredDocuments,
   applications,
   applicationDocuments,
+  payments,
 } from "@shared/schema";
 import { eq, desc, asc, sql, and } from "drizzle-orm";
+import { registerPaymentRoutes } from "./payments";
 import { z } from "zod";
 
 const STATUS_LABELS: Record<string, string> = {
   draft: "Brouillon",
   submitted: "Transmis",
-  received: "Reçu",
-  under_review: "En cours d'examen",
+  received: "Déposé à l'administration",
+  under_review: "En cours de traitement",
   pending_user_action: "Action requise",
   pending_payment: "Paiement requis",
   approved: "Approuvé",
@@ -48,6 +50,7 @@ const procedurePayloadSchema = z.object({
   institution: z.string().trim().min(2),
   estimatedDays: z.coerce.number().int().min(0),
   cost: z.coerce.number().int().min(0),
+  serviceFee: z.coerce.number().int().min(0).optional(),
   currency: z.enum(["CDF", "USD"]).nullable().optional(),
   feeStatus: z.enum(["confirmed", "variable", "unconfirmed"]).optional(),
   status: z.enum(["available", "coming_soon"]).optional(),
@@ -133,6 +136,8 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  registerPaymentRoutes(app, requireAuth);
+
   // ============ AUTHENTICATION ============
 
   app.post("/api/auth/register", async (req: Request, res: Response) => {
@@ -353,6 +358,16 @@ export async function registerRoutes(
           missingFields,
           missingDocs,
         });
+      }
+
+      // Every dossier is paid before our team takes it over. Dossiers transmitted before
+      // online payment existed (submittedAt already set) are not blocked.
+      const paid = await db
+        .select()
+        .from(payments)
+        .where(and(eq(payments.applicationId, dossier.id), eq(payments.status, "succeeded")));
+      if (!paid.length && !dossier.submittedAt) {
+        return res.status(402).json({ error: "Réglez votre démarche pour transmettre votre dossier." });
       }
 
       await storage.updateApplication(req.params.id, {
@@ -608,8 +623,13 @@ export async function registerRoutes(
         const proc = await storage.getProcedure(a.procedureId);
         const user = await storage.getUser(a.userId);
         const documents = await storage.getApplicationDocuments(a.id);
+        const paid = await db
+          .select()
+          .from(payments)
+          .where(and(eq(payments.applicationId, a.id), eq(payments.status, "succeeded")));
 
         return {
+          paid: paid.length > 0,
           ...a,
           procedure: proc,
           user: { prenom: user?.prenom, nom: user?.nom, email: user?.email },

@@ -29,7 +29,7 @@ import { useAuth, isStaffRole } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { AvailabilityBadge } from "@/components/procedure-card";
 import { ErrorState, Notice } from "@/components/states";
-import { availability, feeLabel, formatDate, type ProcedureWithGuide } from "@/lib/procedures";
+import { availability, feeLabel, formatDate, formatMoney, priceOf, type ProcedureWithGuide } from "@/lib/procedures";
 import { authHref } from "@/lib/auth-links";
 import { cn } from "@/lib/utils";
 
@@ -129,7 +129,7 @@ export default function ProcedureDetail() {
   const ctaHelp =
     a.key === "online"
       ? user
-        ? "Votre dossier est enregistré comme brouillon : vous pouvez le compléter en plusieurs fois."
+        ? "Remplissez votre dossier, envoyez vos documents et réglez en ligne : nous faisons le reste."
         : "Connectez-vous ou créez un compte : vous reviendrez ici ensuite."
       : a.key === "external"
         ? "Le dépôt se fait sur le site de l'administration. MesDémarches ne transmet pas votre dossier."
@@ -137,8 +137,17 @@ export default function ProcedureDetail() {
           ? "Cette démarche se fait auprès de l'administration. Utilisez cette fiche pour vous préparer."
           : "Cette démarche n'est pas encore ouverte en ligne. Les informations sont données à titre indicatif.";
 
+  const price = priceOf(procedure);
   const summaryRows = [
-    { icon: Wallet, label: "Frais", value: fee.label, note: guide.feeNote ?? fee.hint },
+    ...(price
+      ? [
+          { icon: Landmark, label: "Frais officiels", value: price.official > 0 ? formatMoney(price.official, "USD") : "Aucun", note: guide.feeNote },
+          { icon: BadgeCheck, label: "Frais de service MesDémarches", value: formatMoney(price.service, "USD") },
+          { icon: Wallet, label: "Total à régler", value: formatMoney(price.total, "USD"), note: "Paiement sécurisé par carte au moment de transmettre votre dossier." },
+        ]
+      : [
+          { icon: Wallet, label: "Prix", value: "Tarif à venir", note: `Frais officiels en cours de fixation, plus ${formatMoney(procedure.serviceFee, "USD")} de frais de service.` },
+        ]),
     { icon: Clock3, label: "Délai de traitement", value: guide.processingNote ?? "Non communiqué par l'administration" },
     { icon: Building2, label: "Institution", value: procedure.institution },
     ...(guide.territory ? [{ icon: MapPin, label: "Territoire", value: guide.territory }] : []),
@@ -182,7 +191,7 @@ export default function ProcedureDetail() {
           {/* Mobile summary */}
           <dl className="mt-8 grid grid-cols-2 gap-3 lg:hidden">
             <div className="rounded-xl bg-white p-3">
-              <dt className="text-sm text-brand-ink-2">Frais</dt>
+              <dt className="text-sm text-brand-ink-2">Prix total</dt>
               <dd className="font-semibold text-brand-ink">{fee.label}</dd>
             </div>
             <div className="rounded-xl bg-white p-3">
@@ -285,7 +294,10 @@ export default function ProcedureDetail() {
           )}
 
           {guide.steps && guide.steps.length > 0 && (
-            <Block title="Les étapes">
+            <Block
+              title="Les étapes"
+              intro="Notre équipe effectue ces démarches auprès de l'administration à votre place. Les étapes marquées « En personne » demandent votre présence : nous vous indiquons quand et où vous présenter."
+            >
               <ol className="relative space-y-6 border-l-2 border-brand-line pl-8">
                 {guide.steps.map((s, i) => {
                   const where = s.where === "physical" ? { icon: MapPin, label: "En personne" } : s.where === "external" ? { icon: Globe, label: "Sur le portail officiel" } : { icon: MonitorSmartphone, label: "En ligne" };
