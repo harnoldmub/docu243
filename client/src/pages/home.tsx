@@ -48,7 +48,7 @@ export default function Home() {
 
 function Hero({ trackHref }: { trackHref: string }) {
   return (
-    <section className="relative overflow-hidden bg-white" aria-labelledby="hero-title">
+    <section className="relative overflow-x-clip bg-white" aria-labelledby="hero-title">
       {/* Big blue field on the right, bleeding to the viewport edge on desktop. */}
       <div className="absolute inset-y-0 right-0 hidden w-[44%] bg-brand-deep lg:block" aria-hidden="true" />
       <div className="md-container relative grid items-center gap-8 pb-12 pt-0 lg:min-h-[calc(100svh-82px)] lg:grid-cols-[1.08fr_0.92fr] lg:gap-6 lg:py-16">
@@ -78,7 +78,7 @@ function Hero({ trackHref }: { trackHref: string }) {
               <Link href={trackHref}>Suivre mon dossier</Link>
             </Button>
           </div>
-          <div id="recherche-demarche" className="hero-rise mt-10 scroll-mt-28 rounded-2xl bg-brand-mist p-4 sm:p-6" style={{ animationDelay: "320ms" }}>
+          <div id="recherche-demarche" className="hero-rise relative z-20 mt-10 scroll-mt-28 rounded-2xl bg-brand-mist p-4 sm:p-6" style={{ animationDelay: "320ms" }}>
             <SearchCombobox id="hero-search" />
           </div>
         </div>

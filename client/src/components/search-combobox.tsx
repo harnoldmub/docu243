@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { ArrowRight, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useProcedures } from "@/hooks/use-procedures";
-import { availability, searchProcedures } from "@/lib/procedures";
+import { searchProcedures } from "@/lib/procedures";
 import { cn } from "@/lib/utils";
 
 /** Search field with suggestions taken from the live catalogue. */
@@ -119,7 +119,7 @@ export function SearchCombobox({ id, className, label = "Quelle démarche souhai
               <span className="min-w-0">
                 <span className="block truncate font-semibold text-brand-ink">{p.title}</span>
                 <span className="block truncate text-sm text-brand-ink-2">
-                  {p.institution} · {availability(p).label}
+                  {p.institution}
                 </span>
               </span>
               <ArrowRight className="h-4 w-4 shrink-0 text-brand-royal" aria-hidden="true" />
