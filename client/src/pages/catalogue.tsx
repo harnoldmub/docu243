@@ -162,12 +162,12 @@ export default function Catalogue() {
   return (
     <>
       <section className="on-blue bg-brand-deep text-white">
-        <div className="md-container pb-12 pt-12 lg:pb-16 lg:pt-16">
+        <div className="md-container pb-6 pt-6 lg:pb-16 lg:pt-16">
           <h1 className="display-1">Toutes les démarches</h1>
-          <p className="lead mt-4 max-w-2xl text-white/80">
+          <p className="lead mt-4 hidden max-w-2xl text-white/80 sm:block">
             Cherchez par nom, par mot-clé ou par administration. Les démarches à venir restent visibles pour vous informer.
           </p>
-          <form role="search" className="relative mt-8 max-w-3xl" onSubmit={(e) => e.preventDefault()}>
+          <form role="search" className="relative mt-4 max-w-3xl sm:mt-8" onSubmit={(e) => e.preventDefault()}>
             <label htmlFor="catalogue-q" className="sr-only">
               Rechercher une démarche
             </label>

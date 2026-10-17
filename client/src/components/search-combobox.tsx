@@ -7,7 +7,23 @@ import { searchProcedures } from "@/lib/procedures";
 import { cn } from "@/lib/utils";
 
 /** Search field with suggestions taken from the live catalogue. */
-export function SearchCombobox({ id, className, label = "Quelle démarche souhaitez-vous effectuer ?" }: { id?: string; className?: string; label?: string }) {
+export function SearchCombobox({
+  id,
+  className,
+  label = "Quelle démarche souhaitez-vous effectuer ?",
+  labelledBy,
+  placeholder = "Ex. numéro d'impôt, acte de naissance…",
+  compact = false,
+}: {
+  id?: string;
+  className?: string;
+  label?: string;
+  /** Id of a visible heading that names the field instead of the built-in label. */
+  labelledBy?: string;
+  placeholder?: string;
+  /** Search button inside the field, for small screens. */
+  compact?: boolean;
+}) {
   const autoId = useId();
   const inputId = id ?? `search-${autoId}`;
   const listId = `${inputId}-list`;
@@ -59,10 +75,12 @@ export function SearchCombobox({ id, className, label = "Quelle démarche souhai
         go();
       }}
     >
-      <label htmlFor={inputId} className="mb-2.5 block font-display text-lg font-bold text-brand-ink">
-        {label}
-      </label>
-      <div className="flex flex-col gap-2 sm:flex-row">
+      {!labelledBy && (
+        <label htmlFor={inputId} className="mb-2.5 block font-display text-lg font-bold text-brand-ink">
+          {label}
+        </label>
+      )}
+      <div className={cn("flex gap-2", !compact && "flex-col sm:flex-row")}>
         <div className="relative flex-1">
           <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-brand-ink-2" aria-hidden="true" />
           <input
@@ -74,7 +92,9 @@ export function SearchCombobox({ id, className, label = "Quelle démarche souhai
             aria-autocomplete="list"
             aria-activedescendant={active >= 0 ? `${listId}-${active}` : undefined}
             autoComplete="off"
-            placeholder="Ex. numéro d'impôt, acte de naissance…"
+            placeholder={placeholder}
+            aria-labelledby={labelledBy}
+            enterKeyHint="search"
             value={query}
             onChange={(e) => {
               setQuery(e.target.value);
@@ -86,12 +106,23 @@ export function SearchCombobox({ id, className, label = "Quelle démarche souhai
               blurTimer.current = window.setTimeout(() => setOpen(false), 120);
             }}
             onKeyDown={onKeyDown}
-            className="field-input h-14 pl-12 pr-4 text-[1.0625rem] shadow-card"
+            className={cn("field-input h-14 pl-12 text-[1.0625rem] shadow-card", compact ? "pr-16" : "pr-4")}
           />
+          {compact && (
+            <button
+              type="submit"
+              aria-label="Rechercher"
+              className="absolute right-1.5 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-lg bg-brand-royal text-white transition-colors hover:bg-brand-deep"
+            >
+              <ArrowRight className="h-5 w-5" aria-hidden="true" />
+            </button>
+          )}
         </div>
-        <Button type="submit" size="xl" className="sm:w-auto">
-          Rechercher
-        </Button>
+        {!compact && (
+          <Button type="submit" size="xl" className="sm:w-auto">
+            Rechercher
+          </Button>
+        )}
       </div>
 
       {showList && (

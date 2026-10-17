@@ -18,6 +18,7 @@ import { ErrorState, Notice } from "@/components/states";
 import { formatMoney, priceOf } from "@/lib/procedures";
 import { relative } from "@/pages/dashboard";
 import { cn } from "@/lib/utils";
+import { PhoneInput } from "@/components/phone-input";
 import { countries, countryName } from "@/lib/countries";
 
 type Dossier = Application & {
@@ -357,7 +358,9 @@ function Wizard({ dossier, queryKey }: { dossier: Dossier; queryKey: string[] })
                         {f.label}
                         <span className="ml-2 text-sm font-normal text-brand-ink-2">{f.required ? "Obligatoire" : "Facultatif"}</span>
                       </label>
-                      {f.type === "select" && Array.isArray(f.options) ? (
+                      {/t[eé]l[eé]phone/i.test(f.label) ? (
+                        <PhoneInput id={`field-${f.id}`} value={values[f.id] ?? ""} onChange={(value) => setValues((current) => ({ ...current, [f.id]: value }))} onBlur={() => { setTouched((current) => ({ ...current, [f.id]: true })); persist(f.id); }} error={!!invalid} />
+                      ) : f.type === "select" && Array.isArray(f.options) ? (
                         <select
                           {...common}
                           className="field-input"

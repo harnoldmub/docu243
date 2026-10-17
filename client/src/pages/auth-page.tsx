@@ -1,15 +1,18 @@
 import { useEffect, useId, useState } from "react";
 import { Link, useLocation, useSearch } from "wouter";
-import { useForm, type UseFormRegisterReturn } from "react-hook-form";
+import { Controller, useForm, type UseFormRegisterReturn } from "react-hook-form";
+import { isValidPhoneNumber } from "libphonenumber-js";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { AlertCircle, Eye, EyeOff } from "lucide-react";
+import { AlertCircle, ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { useAuth, isStaffRole, type User } from "@/hooks/use-auth";
 import { ApiError } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Picture } from "@/components/picture";
 import { safeNext } from "@/lib/auth-links";
 import { cn } from "@/lib/utils";
+import { PhoneInput } from "@/components/phone-input";
+import { Logo } from "@/components/header";
 
 const loginSchema = z.object({
   email: z.string().trim().min(1, "Indiquez votre adresse e-mail.").email("Cette adresse e-mail n'est pas valide."),
@@ -20,10 +23,7 @@ const registerSchema = z.object({
   prenom: z.string().trim().min(2, "Indiquez votre prénom (2 caractères minimum)."),
   nom: z.string().trim().min(2, "Indiquez votre nom (2 caractères minimum)."),
   email: z.string().trim().min(1, "Indiquez votre adresse e-mail.").email("Cette adresse e-mail n'est pas valide."),
-  phone: z
-    .string()
-    .trim()
-    .regex(/^\+?[0-9 ]{9,16}$/, "Indiquez un numéro de téléphone valide, par exemple 0812345678."),
+  phone: z.string().refine((value) => isValidPhoneNumber(value), "Indiquez un numéro de téléphone valide."),
   password: z.string().min(8, "Le mot de passe doit contenir au moins 8 caractères."),
 });
 
@@ -56,7 +56,7 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="grid min-h-[calc(100svh-74px)] lg:grid-cols-[0.95fr_1.05fr]">
+    <div className="grid min-h-svh lg:grid-cols-[0.95fr_1.05fr]">
       <div className="on-blue relative hidden overflow-hidden bg-brand-royal lg:block">
         <Picture
           name="connexion"
@@ -72,8 +72,12 @@ export default function AuthPage() {
         <div className="absolute right-0 top-10 h-24 w-4 rounded-l-md bg-brand-yellow" aria-hidden="true" />
       </div>
 
-      <div className="flex items-start justify-center bg-white px-4 py-10 sm:px-8 lg:items-center lg:py-16">
+      <div className="flex items-start justify-center bg-white px-4 py-8 sm:px-8 lg:items-center lg:py-12">
         <div className="w-full max-w-[440px]">
+          <div className="mb-8 flex items-center justify-between gap-4">
+            <Link href="/" aria-label="MesDémarches, accueil" className="rounded-lg"><Logo className="h-8 sm:h-9" /></Link>
+            <Link href="/" className="inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-brand-ink-2 hover:text-brand-ink"><ArrowLeft className="h-4 w-4" aria-hidden="true" /> Accueil</Link>
+          </div>
           <h1 className="display-2 text-brand-ink">{mode === "register" ? "Créer mon compte" : "Me connecter"}</h1>
           <p className="mt-2 text-brand-ink-2">
             {mode === "register" ? "Quelques informations suffisent. Vous pourrez ensuite commencer vos démarches." : "Accédez à vos dossiers et à vos documents."}
@@ -253,15 +257,14 @@ function RegisterForm({ onDone }: { onDone: (u: User) => void }) {
         <Field label="Nom" autoComplete="family-name" error={errors.nom?.message} registration={form.register("nom")} />
       </div>
       <Field label="Adresse e-mail" type="email" autoComplete="email" error={errors.email?.message} registration={form.register("email")} />
-      <Field
-        label="Téléphone"
-        type="tel"
-        inputMode="tel"
-        autoComplete="tel"
-        hint="Par exemple 0812345678 ou +243812345678."
-        error={errors.phone?.message}
-        registration={form.register("phone")}
-      />
+      <div>
+        <label htmlFor="register-phone" className="mb-1.5 block font-semibold text-brand-ink">Téléphone</label>
+        <p className="mb-2 text-sm text-brand-ink-2">Choisissez l'indicatif, puis saisissez votre numéro local.</p>
+        <Controller control={form.control} name="phone" render={({ field }) => (
+          <PhoneInput id="register-phone" value={field.value} onChange={field.onChange} onBlur={field.onBlur} error={!!errors.phone} />
+        )} />
+        {errors.phone && <p role="alert" className="mt-1.5 flex items-center gap-1.5 text-sm font-semibold text-[var(--st-danger)]"><AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />{errors.phone.message}</p>}
+      </div>
       <Field
         label="Mot de passe"
         type={showPassword ? "text" : "password"}

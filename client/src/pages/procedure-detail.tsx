@@ -394,11 +394,11 @@ export default function ProcedureDetail() {
       </div>
 
       {/* Mobile sticky action */}
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-brand-line bg-white/95 p-3 lg:hidden" style={{ paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}>
+      {/* Sits just above the bottom navigation. */}
+      <div className="fixed inset-x-0 z-30 border-t border-brand-line bg-white p-3 lg:hidden" style={{ bottom: "calc(4rem + env(safe-area-inset-bottom))" }}>
         {cta ?? (
           <p className="flex min-h-11 items-center justify-center text-center text-sm font-semibold text-brand-ink-2">{ctaHelp}</p>
         )}
-        {cta && <p className="mt-1.5 text-center text-xs text-brand-ink-2">{ctaHelp}</p>}
       </div>
     </div>
   );

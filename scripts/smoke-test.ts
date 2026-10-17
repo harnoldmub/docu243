@@ -84,7 +84,7 @@ async function main() {
 
   const citizenUser = await citizen.request<{ id: string; prenom: string; email: string }>("/api/auth/register", {
     method: "POST",
-    body: JSON.stringify({ prenom: "Smoke", nom: "Test", email: CITIZEN_EMAIL, phone: "0812345678", password: CITIZEN_PASSWORD }),
+    body: JSON.stringify({ prenom: "Smoke", nom: "Test", email: CITIZEN_EMAIL, phone: "+243812345678", password: CITIZEN_PASSWORD }),
   });
   const adminUser = await admin.request<{ id: string; prenom: string; email: string; role: string }>("/api/auth/login", {
     method: "POST",
@@ -134,7 +134,7 @@ async function main() {
 
     await citizen.request(`/api/applications/${createdApplication.id}`, {
       method: "PATCH",
-      body: JSON.stringify({ fieldValues }),
+      body: JSON.stringify({ fieldValues, residenceCountry: "CD", residenceCity: "Kinshasa" }),
     });
   }
 
@@ -189,6 +189,14 @@ async function main() {
     body: JSON.stringify({ status: "ready" }),
   });
 
+
+  // Public tracking: general progress only, no personal data or internal id.
+  const anonymous = new SessionClient();
+  const tracked = await anonymous.request<any>(`/api/track/${createdApplication.reference}`);
+  assert(tracked.reference === createdApplication.reference && typeof tracked.stage === "number", "Le suivi public ne renvoie pas l'avancement.");
+  assert(tracked.id === undefined && tracked.owner === false, "Le suivi public expose l'identifiant interne du dossier.");
+  assert(!JSON.stringify(tracked).includes(CITIZEN_EMAIL), "Le suivi public expose des donnees personnelles.");
+  await anonymous.expectStatus("/api/track/pas-un-numero", {}, 400, "Un numero mal forme doit etre refuse.");
 
   const citizenNotifications = await citizen.request<any[]>("/api/notifications");
   assert(

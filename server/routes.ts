@@ -17,7 +17,9 @@ import {
 } from "@shared/schema";
 import { eq, desc, asc, sql, and } from "drizzle-orm";
 import { registerPaymentRoutes } from "./payments";
+import { registerTrackingRoutes } from "./tracking";
 import { z } from "zod";
+import { isValidPhoneNumber } from "libphonenumber-js";
 
 const STATUS_LABELS: Record<string, string> = {
   draft: "Brouillon",
@@ -39,7 +41,7 @@ const registerSchema = z.object({
   prenom: z.string().trim().min(2, "Indiquez votre prénom (2 caractères minimum)."),
   nom: z.string().trim().min(2, "Indiquez votre nom (2 caractères minimum)."),
   email: z.string().trim().email("Cette adresse e-mail n'est pas valide."),
-  phone: z.string().trim().regex(/^\+?[0-9 ]{9,16}$/, "Indiquez un numéro de téléphone valide, par exemple 0812345678."),
+  phone: z.string().trim().refine((value) => isValidPhoneNumber(value), "Indiquez un numéro de téléphone valide avec son indicatif."),
   password: z.string().min(8, "Le mot de passe doit contenir au moins 8 caractères."),
 });
 
@@ -137,6 +139,7 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
   registerPaymentRoutes(app, requireAuth);
+  registerTrackingRoutes(app);
 
   // ============ AUTHENTICATION ============
 
@@ -748,6 +751,7 @@ export async function registerRoutes(
   app.post("/api/admin/users", requireAdmin, async (req: Request, res: Response) => {
     try {
       const { prenom, nom, email, phone, password, institution, role } = req.body;
+      if (typeof phone !== "string" || !isValidPhoneNumber(phone)) return res.status(400).json({ error: "Indiquez un numéro de téléphone valide avec son indicatif." });
       const existing = await storage.getUserByEmail(email);
       if (existing) return res.status(400).json({ error: "Email déjà utilisé" });
 

@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useId, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useDropzone, type FileRejection } from "react-dropzone";
-import { AlertCircle, Eye, FileText, Loader2, RefreshCw, Upload } from "lucide-react";
+import { AlertCircle, Camera, Eye, FileText, Loader2, RefreshCw, Upload } from "lucide-react";
 import { DocumentStatusBadge } from "@/components/status-badge";
 import { cn } from "@/lib/utils";
 
@@ -84,6 +84,25 @@ export function DocUploader({
     [onUpload, maxMb, formats],
   );
 
+  // Photo taken with the phone camera: same checks as the file picker.
+  const cameraRef = useRef<HTMLInputElement>(null);
+  const acceptsImages = formats.some((f) => ["jpg", "jpeg", "png", "webp"].includes(f));
+  const onCamera = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    const allowedTypes = Object.keys(accept);
+    if (!allowedTypes.includes(file.type)) {
+      setError(`Format non accepté. Formats possibles : ${formats.map((f) => f.toUpperCase()).join(", ")}.`);
+      return;
+    }
+    if (file.size > maxMb * 1024 * 1024) {
+      setError(`Cette photo dépasse ${maxMb} Mo. Reprenez-la avec une résolution plus faible.`);
+      return;
+    }
+    onDrop([file], []);
+  };
+
   const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
     onDrop,
     multiple: false,
@@ -137,7 +156,7 @@ export function DocUploader({
               {thumb ? <img src={thumb} alt="" className="h-full w-full object-cover" /> : <FileText className="h-7 w-7 text-brand-royal" aria-hidden="true" />}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate font-semibold text-brand-ink">{fileName ?? "Document envoyé"}</p>
+              <p className="break-all font-semibold text-brand-ink sm:truncate sm:break-normal">{fileName ?? "Document envoyé"}</p>
               <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-9 items-center gap-1.5 text-sm font-semibold text-brand-royal underline-offset-4 hover:underline">
                 <Eye className="h-4 w-4" aria-hidden="true" /> Ouvrir <span className="sr-only">{label} (nouvel onglet)</span>
               </a>
@@ -146,9 +165,9 @@ export function DocUploader({
               <button
                 type="button"
                 onClick={open}
-                className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[hsl(var(--input))] bg-white px-4 text-sm font-semibold text-brand-ink hover:border-brand-ink"
+                className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-[hsl(var(--input))] bg-white px-4 text-sm font-semibold text-brand-ink hover:border-brand-ink sm:w-auto"
               >
-                <RefreshCw className="h-4 w-4" aria-hidden="true" /> Remplacer
+                <RefreshCw className="h-4 w-4" aria-hidden="true" /> Remplacer le fichier
               </button>
             )}
           </div>
@@ -162,11 +181,24 @@ export function DocUploader({
             )}
           >
             <Upload className="h-6 w-6 text-brand-royal" aria-hidden="true" />
-            <span className="font-semibold text-brand-ink">Choisir un fichier ou prendre une photo</span>
+            <span className="font-semibold text-brand-ink">Choisir un fichier</span>
             <span className="hidden text-sm text-brand-ink-2 sm:block">ou glissez-le ici</span>
           </button>
         )}
       </div>
+
+      {!uploading && !disabled && acceptsImages && (
+        <>
+          <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="sr-only" tabIndex={-1} aria-hidden="true" onChange={onCamera} />
+          <button
+            type="button"
+            onClick={() => cameraRef.current?.click()}
+            className="mt-2 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-[hsl(var(--input))] bg-white px-4 font-semibold text-brand-ink active:bg-brand-mist sm:hidden"
+          >
+            <Camera className="h-5 w-5" aria-hidden="true" /> {fileUrl ? "Reprendre en photo" : "Prendre une photo"}
+          </button>
+        </>
+      )}
 
       {error && (
         <p role="alert" className="mt-3 flex items-start gap-2 text-[0.9375rem] font-semibold text-[var(--st-danger)]">

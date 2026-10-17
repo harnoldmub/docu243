@@ -18,6 +18,8 @@ import {
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/phone-input";
+import { isValidPhoneNumber } from "libphonenumber-js";
 import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
@@ -338,8 +340,8 @@ function UserManagement() {
               <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
             </div>
             <div className="space-y-2">
-              <Label>Téléphone</Label>
-              <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+              <Label htmlFor="agent-phone">Téléphone</Label>
+              <PhoneInput id="agent-phone" value={form.phone} onChange={(phone) => setForm((current) => ({ ...current, phone }))} />
             </div>
             <div className="space-y-2">
               <Label>Mot de passe</Label>
@@ -366,7 +368,7 @@ function UserManagement() {
             <Button variant="outline" onClick={() => setCreateOpen(false)}>Annuler</Button>
             <Button
               onClick={() => createAgentMutation.mutate(form)}
-              disabled={createAgentMutation.isPending || !form.prenom || !form.nom || !form.email || !form.phone || !form.password}
+              disabled={createAgentMutation.isPending || !form.prenom || !form.nom || !form.email || !isValidPhoneNumber(form.phone) || !form.password}
             >
               {createAgentMutation.isPending ? "Création..." : "Créer le compte"}
             </Button>

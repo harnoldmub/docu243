@@ -2,6 +2,7 @@ import { Link } from "wouter";
 import {
   ArrowRight,
   Bell,
+  FilePlus2,
   CheckCircle2,
   FileSearch,
   FileUp,
@@ -11,7 +12,6 @@ import {
   RefreshCw,
   Search,
 } from "lucide-react";
-import { useAuth } from "@/hooks/use-auth";
 import { useProcedures } from "@/hooks/use-procedures";
 import { useReveal } from "@/hooks/use-reveal";
 import { Button } from "@/components/ui/button";
@@ -22,16 +22,17 @@ import { ErrorState, EmptyState } from "@/components/states";
 import { StatusBadge } from "@/components/status-badge";
 import { FaqAccordion } from "@/components/faq";
 import { GOALS } from "@/lib/goals";
-import { authHref } from "@/lib/auth-links";
+import { categoryIcon } from "@/lib/category-icons";
+import { availability, formatMoney, priceOf } from "@/lib/procedures";
 import { cn } from "@/lib/utils";
 
 export default function Home() {
   useReveal();
-  const { user } = useAuth();
-  const trackHref = user ? "/dashboard" : authHref("login", "/dashboard");
+  const trackHref = "/suivi";
 
   return (
     <>
+      <MobileHome />
       <Hero trackHref={trackHref} />
       <CommonProcedures />
       <Goals />
@@ -46,9 +47,120 @@ export default function Home() {
 
 /* ------------------------------------------------------------------ */
 
+const QUICK_LINKS = [
+  { label: "Numéro d'impôt", slug: "numero-identification-fiscale" },
+  { label: "Passeport", slug: "passeport-biometrique" },
+  { label: "Acte de naissance", slug: "acte-de-naissance" },
+];
+
+/** First screen on phones: question, search, suggestions and the two main actions. */
+function MobileHome() {
+  const { data, isLoading, isError, refetch } = useProcedures();
+  const published = new Set((data ?? []).map((p) => p.slug));
+  const common = (data ?? []).filter((p) => p.isPriority).sort((a, b) => a.sortOrder - b.sortOrder).slice(0, 8);
+
+  return (
+    <div className="lg:hidden">
+      <section className="bg-white" aria-labelledby="m-title">
+        <div className="md-container pb-6 pt-5">
+          <h1 id="m-title" className="font-display text-[1.625rem] font-extrabold leading-[1.1] tracking-[-0.02em] text-brand-ink [text-wrap:pretty] min-[390px]:text-[1.75rem]">
+            {/* Non-breaking hyphen: "souhaitez-vous" never splits across lines. */}
+            Quelle démarche souhaitez{"\u2011"}vous effectuer&nbsp;?
+          </h1>
+          <SearchCombobox id="m-search" labelledBy="m-title" compact placeholder="Passeport, numéro d'impôt, acte de naissance…" className="mt-4" />
+
+          <ul className="mt-3 flex flex-wrap gap-2" aria-label="Suggestions">
+            {QUICK_LINKS.map((q) => (
+              <li key={q.slug}>
+                <Link
+                  href={published.has(q.slug) || !data ? `/procedure/${q.slug}` : `/catalogue?q=${encodeURIComponent(q.label)}`}
+                  className="inline-flex min-h-11 items-center rounded-full border border-brand-line bg-white px-4 text-[0.9375rem] font-semibold text-brand-ink active:bg-brand-mist"
+                >
+                  {q.label}
+                </Link>
+              </li>
+            ))}
+            <li>
+              <Link href="/catalogue" className="inline-flex min-h-11 items-center gap-1 rounded-full bg-brand-sky px-4 text-[0.9375rem] font-semibold text-brand-deep">
+                Toutes les démarches <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </Link>
+            </li>
+          </ul>
+
+          <div className="mt-5 grid grid-cols-2 gap-3">
+            <Link href="/catalogue" className="flex min-h-[104px] flex-col justify-between rounded-2xl bg-brand-royal p-4 text-white active:bg-brand-deep">
+              <FilePlus2 className="h-6 w-6" aria-hidden="true" />
+              <span>
+                <span className="block font-display text-lg font-bold leading-tight">Nouvelle demande</span>
+                <span className="mt-0.5 block text-sm text-white/80">Choisir une démarche</span>
+              </span>
+            </Link>
+            <Link href="/suivi" className="flex min-h-[104px] flex-col justify-between rounded-2xl bg-brand-yellow p-4 text-brand-ink active:bg-[#ffe14d]">
+              <FileSearch className="h-6 w-6" aria-hidden="true" />
+              <span>
+                <span className="block font-display text-lg font-bold leading-tight">Suivre mon dossier</span>
+                <span className="mt-0.5 block text-sm text-brand-ink/75">Avec mon numéro</span>
+              </span>
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      <section className="bg-brand-mist py-8" aria-labelledby="m-common">
+        <div className="md-container">
+          <div className="flex items-baseline justify-between gap-3">
+            <h2 id="m-common" className="font-display text-xl font-bold text-brand-ink">Démarches courantes</h2>
+            <Link href="/catalogue" className="text-[0.9375rem] font-semibold text-brand-royal">Tout voir</Link>
+          </div>
+          {isLoading ? (
+            <div className="mt-4 grid grid-cols-1 gap-3 min-[360px]:grid-cols-2" aria-busy="true" aria-label="Chargement des démarches">
+              {[0, 1, 2, 3].map((i) => <div key={i} className="skeleton h-[120px]" />)}
+            </div>
+          ) : isError ? (
+            <ErrorState className="mt-4" message="Les démarches n'ont pas pu être chargées." onRetry={() => refetch()} />
+          ) : (
+            <ul className="mt-4 grid grid-cols-1 gap-3 min-[360px]:grid-cols-2">
+              {common.map((p) => {
+                const Icon = categoryIcon(p.category);
+                const price = priceOf(p);
+                const soon = availability(p).key !== "online";
+                return (
+                  <li key={p.id}>
+                    <Link
+                      href={`/procedure/${p.slug}`}
+                      className="flex h-full items-center gap-3 rounded-2xl border border-brand-line bg-white p-4 active:bg-brand-sky min-[360px]:min-h-[120px] min-[360px]:flex-col min-[360px]:items-start"
+                    >
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-sky text-brand-royal">
+                        <Icon className="h-5 w-5" aria-hidden="true" />
+                      </span>
+                      <span className="flex min-w-0 flex-1 flex-col gap-1 self-stretch min-[360px]:gap-3">
+                      <span className="font-semibold leading-snug text-brand-ink">{p.title}</span>
+                      <span className="mt-auto text-sm text-brand-ink-2">
+                        {soon ? (
+                          <span className="font-semibold text-[var(--st-neutral)]">À venir</span>
+                        ) : (
+                          <>
+                            <span className="font-semibold text-[var(--st-success)]">Disponible</span>
+                            {price && <> · {formatMoney(price.total, "USD")}</>}
+                          </>
+                        )}
+                      </span>
+                      </span>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      </section>
+    </div>
+  );
+}
+
 function Hero({ trackHref }: { trackHref: string }) {
   return (
-    <section className="relative overflow-x-clip bg-white" aria-labelledby="hero-title">
+    <section className="relative hidden overflow-x-clip bg-white lg:block" aria-labelledby="hero-title">
       {/* Big blue field on the right, bleeding to the viewport edge on desktop. */}
       <div className="absolute inset-y-0 right-0 hidden w-[44%] bg-brand-deep lg:block" aria-hidden="true" />
       <div className="md-container relative grid items-center gap-8 pb-12 pt-0 lg:min-h-[calc(100svh-82px)] lg:grid-cols-[1.08fr_0.92fr] lg:gap-6 lg:py-16">
@@ -141,7 +253,7 @@ function CommonProcedures() {
   const common = (data ?? []).filter((p) => p.isPriority).sort((a, b) => a.sortOrder - b.sortOrder).slice(0, 6);
 
   return (
-    <section className="bg-brand-mist py-20 lg:py-28" aria-labelledby="common-title">
+    <section className="hidden bg-brand-mist py-20 lg:block lg:py-28" aria-labelledby="common-title">
       <div className="md-container">
         <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
           <SectionHeading
@@ -194,7 +306,7 @@ function Goals() {
   const featured = GOALS.filter((g) => g.photo);
   const others = GOALS.filter((g) => !g.photo);
   return (
-    <section className="bg-brand-yellow py-20 lg:py-28" aria-labelledby="goals-title">
+    <section className="bg-brand-yellow py-12 lg:py-28" aria-labelledby="goals-title">
       <div className="md-container">
         <SectionHeading
           id="goals-title"
@@ -295,7 +407,7 @@ export function HowItWorksSteps() {
 
 function HowItWorks() {
   return (
-    <section className="bg-white py-20 lg:py-28" aria-labelledby="how-title" id="comment-ca-marche">
+    <section className="bg-white py-12 lg:py-28" aria-labelledby="how-title" id="comment-ca-marche">
       <div className="md-container">
         <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-end">
           <SectionHeading id="how-title" title={<>Trois étapes, <br className="hidden sm:block" />nous faisons le reste.</>} />
@@ -328,7 +440,7 @@ function HumanSection() {
     { icon: RefreshCw, text: "Une pièce à corriger ? Remplacez-la sans refaire tout le dossier ni payer de nouveau." },
   ];
   return (
-    <section className="overflow-hidden bg-brand-mist py-20 lg:py-28" aria-labelledby="human-title">
+    <section className="hidden overflow-hidden bg-brand-mist py-20 lg:block lg:py-28" aria-labelledby="human-title">
       <div className="md-container grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
         <div className="relative" data-reveal>
           <div className="absolute -left-4 -top-4 h-2/3 w-2/3 rounded-[28px] bg-brand-royal sm:-left-8 sm:-top-8" aria-hidden="true" />
@@ -375,7 +487,7 @@ const DEMO = [
 
 function CitizenSpacePreview() {
   return (
-    <section className="on-blue relative overflow-hidden bg-brand-royal py-20 text-white lg:py-28" aria-labelledby="space-title">
+    <section className="on-blue relative hidden overflow-hidden bg-brand-royal py-20 text-white lg:block lg:py-28" aria-labelledby="space-title">
       <div className="md-container grid gap-12 lg:grid-cols-[0.85fr_1.15fr] lg:items-center">
         <div data-reveal>
           <h2 id="space-title" className="display-1">
@@ -433,7 +545,7 @@ function CitizenSpacePreview() {
 
 function FaqSection() {
   return (
-    <section className="bg-white py-20 lg:py-28" aria-labelledby="faq-title">
+    <section className="bg-white py-12 lg:py-28" aria-labelledby="faq-title">
       <div className="md-container grid gap-10 lg:grid-cols-[0.8fr_1.2fr]">
         <div>
           <SectionHeading id="faq-title" title="Questions fréquentes" />
@@ -451,7 +563,7 @@ function FaqSection() {
 
 function FinalCta() {
   return (
-    <section className="bg-white pb-20 lg:pb-28" aria-labelledby="cta-title">
+    <section className="bg-white pb-12 lg:pb-28" aria-labelledby="cta-title">
       <div className="md-container">
         <div className="on-blue relative grid overflow-hidden rounded-[28px] bg-brand-royal text-white lg:grid-cols-[1.2fr_0.8fr]" data-reveal>
           <div className="relative z-10 p-8 sm:p-12 lg:p-16">

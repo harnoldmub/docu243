@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "@/hooks/use-auth";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
+import { BottomNav } from "@/components/bottom-nav";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
 import Catalogue from "@/pages/catalogue";
@@ -22,6 +23,7 @@ const TermsPage = lazy(() => import("@/pages/legal").then((m) => ({ default: m.T
 const Dashboard = lazy(() => import("@/pages/dashboard"));
 const ApplicationDetail = lazy(() => import("@/pages/application-detail"));
 const Receipt = lazy(() => import("@/pages/receipt"));
+const TrackPage = lazy(() => import("@/pages/track"));
 const MyDocuments = lazy(() => import("@/pages/my-documents"));
 const Notifications = lazy(() => import("@/pages/notifications"));
 const Profile = lazy(() => import("@/pages/profile"));
@@ -35,6 +37,7 @@ const TITLES: Array<[RegExp, string]> = [
   [/^\/catalogue/, "Toutes les démarches — MesDémarches"],
   [/^\/auth/, "Connexion — MesDémarches"],
   [/^\/dashboard/, "Mes dossiers — MesDémarches"],
+  [/^\/suivi/, "Suivre mon dossier — MesDémarches"],
   [/^\/mes-documents/, "Mes documents — MesDémarches"],
   [/^\/notifications/, "Notifications — MesDémarches"],
   [/^\/profil/, "Mon profil — MesDémarches"],
@@ -89,6 +92,7 @@ function Router() {
         <Route path="/mentions-legales" component={LegalNoticePage} />
         <Route path="/confidentialite" component={PrivacyPage} />
         <Route path="/conditions" component={TermsPage} />
+        <Route path="/suivi" component={TrackPage} />
         <Route path="/dashboard" component={Dashboard} />
         <Route path="/application/:id/recu" component={Receipt} />
         <Route path="/application/:id" component={ApplicationDetail} />
@@ -107,9 +111,6 @@ function Router() {
         <Route path="/demarches">
           <Redirect to="/catalogue" replace />
         </Route>
-        <Route path="/suivi">
-          <Redirect to="/dashboard" replace />
-        </Route>
 
         <Route component={NotFound} />
       </Switch>
@@ -118,17 +119,20 @@ function Router() {
 }
 
 function App() {
+  const [location] = useLocation();
+  const isAuthPage = location === "/auth";
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
           <RouteEffects />
-          <div className="flex min-h-screen flex-col">
-            <Header />
+          <div className={isAuthPage ? "flex min-h-screen flex-col" : "flex min-h-screen flex-col pb-[calc(4rem+env(safe-area-inset-bottom))] lg:pb-0"}>
+            {!isAuthPage && <Header />}
             <main id="contenu" className="flex-1" tabIndex={-1}>
               <Router />
             </main>
-            <Footer />
+            {!isAuthPage && <Footer />}
           </div>
+          {!isAuthPage && <BottomNav />}
           <Toaster />
       </AuthProvider>
     </QueryClientProvider>

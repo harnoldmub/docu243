@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 import * as Dialog from "@radix-ui/react-dialog";
-import { ChevronDown, FolderOpen, LogOut, Menu, ShieldCheck, User as UserIcon, X, Files } from "lucide-react";
+import { ChevronDown, CircleHelp, FolderOpen, LogOut, Menu, ShieldCheck, User as UserIcon, X, Files } from "lucide-react";
 import { useAuth, isStaffRole } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { NotificationsMenu } from "@/components/notifications-menu";
@@ -68,9 +68,9 @@ export function Header() {
       >
         Aller au contenu
       </a>
-      <div className="md-container flex h-[68px] items-center justify-between gap-4 lg:h-[76px]">
+      <div className="md-container flex h-[60px] items-center justify-between gap-3 lg:h-[76px]">
         <Link href="/" aria-label="MesDémarches, accueil" className="shrink-0 rounded-lg">
-          <Logo className="h-8 sm:h-10" />
+          <Logo className="h-7 min-[390px]:h-8 sm:h-10" />
         </Link>
 
         <nav aria-label="Navigation principale" className="hidden xl:block">
@@ -95,7 +95,14 @@ export function Header() {
           </ul>
         </nav>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2">
+          <Link
+            href="/aide"
+            aria-label="Aide"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-brand-ink transition-colors hover:bg-brand-mist lg:hidden"
+          >
+            <CircleHelp className="h-5 w-5" aria-hidden="true" />
+          </Link>
           {user ? (
             <>
               <NotificationsMenu />
@@ -154,7 +161,7 @@ export function Header() {
             <>
               <Link
                 href={authHref("login")}
-                className="inline-flex min-h-11 items-center rounded-xl px-3 text-[0.9375rem] font-semibold text-brand-ink transition-colors hover:bg-brand-mist"
+                className="hidden min-h-11 items-center rounded-xl px-3 text-[0.9375rem] font-semibold text-brand-ink transition-colors hover:bg-brand-mist lg:inline-flex"
               >
                 Connexion
               </Link>
